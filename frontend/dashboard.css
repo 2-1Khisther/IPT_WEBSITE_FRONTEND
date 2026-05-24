@@ -1,0 +1,222 @@
+/* ─────────────────────────────────────────
+   CSS Variables
+───────────────────────────────────────── */
+:root {
+  --blue-dark:    #1a2a7a;
+  --blue-mid:     #1e3aaa;
+  --blue-accent:  #2d50cc;
+  --white:        #ffffff;
+  --grey-bg:      #e8e8e8;
+  --card-bg:      #f0f2f8;
+  --card-hover:   #e4e8f5;
+  --card-border:  #c8d0ea;
+  --text-dark:    #1a2060;
+  --text-label:   #2d50cc;
+  --text-sub:     #5566aa;
+  --shadow:       0 8px 32px rgba(10, 20, 100, 0.15);
+  --radius:       16px;
+  --font-main:    'Georgia', 'Times New Roman', serif;
+  --font-ui:      'Trebuchet MS', 'Segoe UI', sans-serif;
+}
+
+/* ─────────────────────────────────────────
+   Reset & Base
+───────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-ui);
+  background-color: var(--grey-bg);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ─────────────────────────────────────────
+   Page Layout (blue top / grey bottom split)
+───────────────────────────────────────── */
+.page {
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 55%;
+  background: linear-gradient(160deg, var(--blue-dark) 0%, var(--blue-mid) 100%);
+  z-index: 0;
+}
+
+.bottom {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 45%;
+  background-color: var(--grey-bg);
+  z-index: 0;
+}
+
+/* ─────────────────────────────────────────
+   Main Content
+───────────────────────────────────────── */
+.content {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 800px;
+  padding: 40px 20px;
+}
+
+/* ─────────────────────────────────────────
+   Logo Area — replace logo.png with your file
+───────────────────────────────────────── */
+.logo-wrapper {
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 3px solid rgba(255,255,255,0.5);
+  background-color: var(--blue-dark);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+  box-shadow: 0 4px 16px rgba(10, 20, 100, 0.3);
+}
+
+.logo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* ─────────────────────────────────────────
+   Title & Subtitle
+───────────────────────────────────────── */
+.title {
+  font-family: var(--font-main);
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--white);
+  text-align: center;
+  letter-spacing: 0.02em;
+  margin-bottom: 6px;
+}
+
+.subtitle {
+  font-size: 0.95rem;
+  color: rgba(255, 255, 255, 0.85);
+  font-style: italic;
+  text-align: center;
+  margin-bottom: 36px;
+}
+
+/* ─────────────────────────────────────────
+   Cards Row
+───────────────────────────────────────── */
+.cards {
+  display: flex;
+  gap: 24px;
+  justify-content: center;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+/* ─────────────────────────────────────────
+   Individual Card
+───────────────────────────────────────── */
+.card {
+  background-color: var(--card-bg);
+  border: 1.5px solid var(--card-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  width: 260px;
+  min-height: 260px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 24px;
+  gap: 12px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 0.2s, transform 0.2s, box-shadow 0.2s;
+}
+
+.card:hover {
+  background-color: var(--card-hover);
+  transform: translateY(-4px);
+  box-shadow: 0 14px 40px rgba(10, 20, 100, 0.2);
+}
+
+.card:active {
+  transform: translateY(-1px);
+}
+
+/* ─────────────────────────────────────────
+   Card Icon
+───────────────────────────────────────── */
+.card-icon {
+  width: 90px;
+  height: 90px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.card-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* ─────────────────────────────────────────
+   Card Text
+───────────────────────────────────────── */
+.card-label {
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: var(--text-label);
+  text-align: center;
+  letter-spacing: 0.05em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+.card-sub {
+  font-size: 0.75rem;
+  color: var(--text-sub);
+  font-style: italic;
+  text-align: center;
+}
+
+/* ─────────────────────────────────────────
+   Responsive
+───────────────────────────────────────── */
+@media (max-width: 600px) {
+  .cards {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .card {
+    width: 100%;
+    max-width: 320px;
+  }
+}

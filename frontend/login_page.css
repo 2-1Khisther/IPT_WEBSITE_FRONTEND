@@ -1,0 +1,202 @@
+/* ─────────────────────────────────────────
+   CSS Variables
+───────────────────────────────────────── */
+:root {
+  --blue-dark:      #1a2a7a;
+  --blue-mid:       #1e3aaa;
+  --blue-btn:       #2d50cc;
+  --blue-btn-hover: #1a3ab8;
+  --white:          #ffffff;
+  --grey-bg:        #e8e8e8;
+  --card-bg:        #f4f6ff;
+  --input-bg:       #eef0ff;
+  --input-border:   #b0bce8;
+  --text-dark:      #1a2060;
+  --text-label:     #2a3580;
+  --shadow:         0 8px 32px rgba(10, 20, 100, 0.18);
+  --radius:         12px;
+  --font-main:      'Georgia', 'Times New Roman', serif;
+  --font-ui:        'Trebuchet MS', 'Segoe UI', sans-serif;
+}
+
+/* ─────────────────────────────────────────
+   Reset & Base
+───────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-ui);
+  background-color: var(--grey-bg);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ─────────────────────────────────────────
+   Page Layout
+───────────────────────────────────────── */
+.page {
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 50%;
+  background: linear-gradient(160deg, var(--blue-dark) 0%, var(--blue-mid) 100%);
+  z-index: 0;
+}
+
+.bottom {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 50%;
+  background-color: var(--grey-bg);
+  z-index: 0;
+}
+
+/* ─────────────────────────────────────────
+   Login Card
+───────────────────────────────────────── */
+.card {
+  position: relative;
+  z-index: 10;
+  background-color: var(--card-bg);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 48px 40px 40px;
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* ─────────────────────────────────────────
+   Logo Area — replace logo.png with your file
+───────────────────────────────────────── */
+.logo-wrapper {
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 3px solid var(--blue-mid);
+  background-color: var(--blue-dark);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+  margin-top: -72px;
+  box-shadow: 0 4px 14px rgba(10, 20, 100, 0.25);
+}
+
+.logo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* ─────────────────────────────────────────
+   Title
+───────────────────────────────────────── */
+.title {
+  font-family: var(--font-main);
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-dark);
+  text-align: center;
+  letter-spacing: 0.02em;
+  margin-bottom: 28px;
+}
+
+/* ─────────────────────────────────────────
+   Form Groups
+───────────────────────────────────────── */
+.form-group {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-label);
+  letter-spacing: 0.01em;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 10px 14px;
+  background-color: var(--input-bg);
+  border: 1.5px solid var(--input-border);
+  border-radius: 6px;
+  font-size: 0.95rem;
+  color: var(--text-dark);
+  font-family: var(--font-ui);
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.form-group input:focus {
+  border-color: var(--blue-btn);
+  box-shadow: 0 0 0 3px rgba(45, 80, 204, 0.15);
+}
+
+/* ─────────────────────────────────────────
+   Login Button
+───────────────────────────────────────── */
+.btn-login {
+  margin-top: 10px;
+  width: 100%;
+  padding: 12px;
+  background-color: var(--blue-btn);
+  color: var(--white);
+  font-family: var(--font-ui);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s, transform 0.1s, box-shadow 0.2s;
+  box-shadow: 0 4px 12px rgba(45, 80, 204, 0.35);
+}
+
+.btn-login:hover {
+  background-color: var(--blue-btn-hover);
+  box-shadow: 0 6px 18px rgba(30, 58, 168, 0.4);
+}
+
+.btn-login:active {
+  transform: translateY(1px);
+  box-shadow: 0 2px 8px rgba(30, 58, 168, 0.3);
+}
+
+/* ─────────────────────────────────────────
+   Responsive
+───────────────────────────────────────── */
+@media (max-width: 480px) {
+  .card {
+    margin: 0 16px;
+    padding: 40px 24px 32px;
+  }
+}

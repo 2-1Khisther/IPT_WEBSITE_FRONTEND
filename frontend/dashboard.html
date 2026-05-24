@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>UEP Registrar Admin - Dashboard</title>
+  <link rel="stylesheet" href="dashboard.css" />
+</head>
+<body>
+
+  <div class="page">
+
+    <!-- Top blue banner -->
+    <div class="banner"></div>
+
+    <!-- Bottom grey section -->
+    <div class="bottom"></div>
+
+    <!-- Main content -->
+    <div class="content">
+
+      <!-- Logo placeholder (put your logo.png in the same folder) -->
+      <div class="logo-wrapper">
+        <img src="Logo/ueplogo.png" alt="UEP Logo" class="logo" />
+      </div>
+
+      <h1 class="title">UEP Registrar Admin</h1>
+      <p class="subtitle">Please select what you want to use</p>
+
+      <!-- Cards -->
+      <div class="cards">
+
+        <!-- Card 1: System Monitoring -->
+        <a href="#" class="card" id="card-monitoring">
+          <div class="card-icon">
+            <!-- Monitor SVG icon -->
+            <svg viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg" fill="none">
+              <!-- Yellow circle background -->
+              <circle cx="40" cy="45" r="28" fill="#F5A623"/>
+              <!-- Monitor body -->
+              <rect x="14" y="18" width="52" height="36" rx="4" fill="#3BBFED" stroke="#1a2a7a" stroke-width="2"/>
+              <!-- Screen -->
+              <rect x="18" y="22" width="44" height="26" rx="2" fill="#1a7abf"/>
+              <!-- Bar chart bars -->
+              <rect x="24" y="34" width="5" height="10" rx="1" fill="#fff"/>
+              <rect x="32" y="30" width="5" height="14" rx="1" fill="#fff"/>
+              <rect x="40" y="26" width="5" height="18" rx="1" fill="#fff"/>
+              <rect x="48" y="32" width="5" height="12" rx="1" fill="#fff"/>
+              <!-- Monitor stand -->
+              <rect x="36" y="54" width="8" height="6" rx="1" fill="#3BBFED" stroke="#1a2a7a" stroke-width="1.5"/>
+              <rect x="30" y="59" width="20" height="3" rx="1.5" fill="#1a2a7a"/>
+            </svg>
+          </div>
+          <div class="card-label">SYSTEM MONITORING<br/>AND MANAGEMENT</div>
+          <div class="card-sub">(Profiling, Admission, Requests)</div>
+        </a>
+
+        <!-- Card 2: Archiving -->
+        <a href="#" class="card" id="card-archiving">
+          <div class="card-icon">
+            <!-- Archive box SVG icon -->
+            <svg viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg" fill="none">
+              <!-- Box body -->
+              <rect x="12" y="36" width="56" height="34" rx="4" fill="#E8C99A" stroke="#1a2a7a" stroke-width="2"/>
+              <!-- Box lid -->
+              <rect x="8" y="26" width="64" height="14" rx="4" fill="#D4A96A" stroke="#1a2a7a" stroke-width="2"/>
+              <!-- Lid handle -->
+              <rect x="28" y="22" width="24" height="8" rx="4" fill="#E8C99A" stroke="#1a2a7a" stroke-width="2"/>
+              <!-- Drawer slot on body -->
+              <rect x="20" y="48" width="40" height="8" rx="3" fill="#fff" stroke="#1a2a7a" stroke-width="1.5"/>
+              <!-- Drawer handle -->
+              <rect x="33" y="51" width="14" height="3" rx="1.5" fill="#2d50cc"/>
+            </svg>
+          </div>
+          <div class="card-label">ARCHIVING</div>
+        </a>
+
+      </div>
+    </div>
+
+  </div>
+
+</body>
+</html>
