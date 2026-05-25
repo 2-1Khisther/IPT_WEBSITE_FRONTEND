@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>UEP Registrar - Dashboard</title>
+  <link rel="stylesheet" href="monitoring.css" />
+</head>
+<body>
+
+  <!-- ── TOPBAR ── -->
+  <header class="topbar">
+    <div class="topbar-logo">
+      <img src="logo.png" alt="UEP Logo" class="logo" />
+    </div>
+    <span class="topbar-title">UEP Registrar Admin</span>
+  </header>
+
+  <div class="layout">
+
+    <!-- ── SIDEBAR ── -->
+    <aside class="sidebar">
+      <nav class="nav">
+        <a href="monitoring.html" class="nav-item active">
+          <span class="nav-icon">&#9783;</span> Dashboard
+        </a>
+        <a href="#" class="nav-item">
+          <span class="nav-icon">&#9781;</span> Admission
+        </a>
+        <a href="#" class="nav-item">
+          <span class="nav-icon">&#9782;</span> Profiling
+        </a>
+        <a href="#" class="nav-item">
+          <span class="nav-icon">&#9780;</span> Requests
+        </a>
+      </nav>
+      <a href="index.html" class="logout">Logout</a>
+    </aside>
+
+    <!-- ── MAIN CONTENT ── -->
+    <main class="main">
+
+      <!-- ── BLUE BANNER (title + stat cards) ── -->
+      <div class="blue-banner">
+        <h2 class="page-title">DASHBOARD</h2>
+
+        <!-- ── STAT CARDS ── -->
+        <div class="stat-cards">
+          <div class="stat-card">
+            <div class="stat-label">Total number of Students</div>
+            <div class="stat-value placeholder-num">—</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Total number of Admissions</div>
+            <div class="stat-value placeholder-num">—</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Total number of Profiling</div>
+            <div class="stat-value placeholder-num">—</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Total number of Requests</div>
+            <div class="stat-value placeholder-num">—</div>
+          </div>
+        </div>
+      </div><!-- end blue-banner -->
+
+      <!-- ── CHARTS ROW ── -->
+      <div class="charts-row">
+
+        <!-- Chart 1 -->
+        <div class="chart-card">
+          <div class="chart-legend">
+            <span class="legend-dot green"></span> Claimed
+            <span class="legend-dot blue"></span> For release
+            <span class="legend-dot grey"></span> Pending
+          </div>
+          <div class="chart-area">
+            <div class="y-axis">
+              <span>5</span>
+              <span>4</span>
+              <span>3</span>
+              <span>2</span>
+              <span>1</span>
+              <span>0</span>
+            </div>
+            <div class="chart-inner">
+              <div class="grid-lines">
+                <div class="grid-line"></div>
+                <div class="grid-line"></div>
+                <div class="grid-line"></div>
+                <div class="grid-line"></div>
+                <div class="grid-line"></div>
+                <div class="grid-line"></div>
+              </div>
+              <div class="bars">
+                <div class="bar-wrap">
+                  <div class="bar green" style="height:60%"></div>
+                </div>
+                <div class="bar-wrap">
+                  <div class="bar blue" style="height:80%"></div>
+                </div>
+                <div class="bar-wrap">
+                  <div class="bar grey" style="height:90%"></div>
+                </div>
+              </div>
+              <div class="no-data-label">No data yet</div>
+            </div>
+          </div>
+          <div class="chart-title">Request count by status</div>
+        </div>
+
+        <!-- Chart 2 -->
+        <div class="chart-card">
+          <div class="chart-legend">
+            <span class="legend-dot red"></span> Admission
+            <span class="legend-dot purple"></span> Profiling
+            <span class="legend-dot yellow"></span> Requests
+          </div>
+          <div class="chart-area">
+            <div class="y-axis">
+              <span>5</span>
+              <span>4</span>
+              <span>3</span>
+              <span>2</span>
+              <span>1</span>
+              <span>0</span>
+            </div>
+            <div class="chart-inner">
+              <div class="grid-lines">
+                <div class="grid-line"></div>
+                <div class="grid-line"></div>
+                <div class="grid-line"></div>
+                <div class="grid-line"></div>
+                <div class="grid-line"></div>
+                <div class="grid-line"></div>
+              </div>
+              <div class="bars">
+                <div class="bar-wrap">
+                  <div class="bar red" style="height:60%"></div>
+                </div>
+                <div class="bar-wrap">
+                  <div class="bar purple" style="height:80%"></div>
+                </div>
+                <div class="bar-wrap">
+                  <div class="bar yellow" style="height:90%"></div>
+                </div>
+              </div>
+              <div class="no-data-label">No data yet</div>
+            </div>
+          </div>
+          <div class="chart-title">Total records per module</div>
+        </div>
+
+      </div>
+    </main>
+
+  </div>
+
+</body>
+</html>
