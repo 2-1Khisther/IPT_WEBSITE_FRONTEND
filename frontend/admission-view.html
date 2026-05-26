@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>UEP Registrar Admin - Admission Record</title>
+  <link rel="stylesheet" href="production-system.css" />
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="topbar-logo">
+        <img src="ueplogo.png" class="logo" alt="Logo" />
+    </div>
+    <span class="topbar-title">UEP Registrar Admin</span>
+  </div>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <nav class="nav">
+        <a href="dashboard.html" class="nav-item">
+          <span class="nav-icon">📊</span>
+          <span>Dashboard</span>
+        </a>
+        <a href="admission.html" class="nav-item active">
+          <span class="nav-icon">📄</span>
+          <span>Admission</span>
+        </a>
+        <a href="profiling.html" class="nav-item">
+          <span class="nav-icon">👤</span>
+          <span>Profiling</span>
+        </a>
+        <a href="requests.html" class="nav-item">
+          <span class="nav-icon">📁</span>
+          <span>Requests</span>
+        </a>
+      </nav>
+      <a href="admission.html" class="logout">◄ Return to List</a>
+    </aside>
+
+    <main class="main">
+      <div class="blue-banner">
+        <div class="page-title">ADMISSION VIEW</div>
+      </div>
+
+      <form class="form-view-container" id="form-admission-record" onsubmit="return false;">
+        <div class="form-split-grid">
+          
+          <div>
+            <div class="form-field-group">
+              <label>Admission No.</label>
+              <input type="text" id="field-admission-no" readonly />
+            </div>
+            <div class="form-field-group">
+              <label>First Name</label>
+              <input type="text" id="field-first-name" readonly />
+              <button type="button" class="field-lock-toggle">🔒</button>
+            </div>
+            <div class="form-field-group">
+              <label>Middle Name</label>
+              <input type="text" id="field-middle-name" readonly />
+              <button type="button" class="field-lock-toggle">🔒</button>
+            </div>
+            <div class="form-field-group">
+              <label>Last Name</label>
+              <input type="text" id="field-last-name" readonly />
+              <button type="button" class="field-lock-toggle">🔒</button>
+            </div>
+            <div class="form-field-group">
+              <label>Date of Birth</label>
+              <input type="text" id="field-dob" readonly />
+              <button type="button" class="field-lock-toggle">🔒</button>
+            </div>
+            <div class="form-field-group">
+              <label>Place of Birth</label>
+              <input type="text" id="field-pob" readonly />
+              <button type="button" class="field-lock-toggle">🔒</button>
+            </div>
+            <div class="form-field-group">
+              <label>Home Address</label>
+              <input type="text" id="field-address" readonly />
+              <button type="button" class="field-lock-toggle">🔒</button>
+            </div>
+          </div>
+
+          <div>
+            <div class="form-field-group">
+              <label>Gender</label>
+              <input type="text" id="field-gender" readonly />
+              <button type="button" class="field-lock-toggle">🔒</button>
+            </div>
+            <div class="form-field-group">
+              <label>Email Account</label>
+              <input type="email" id="field-email" readonly />
+              <button type="button" class="field-lock-toggle">🔒</button>
+            </div>
+            <div class="form-field-group">
+              <label>School Last Attended</label>
+              <input type="text" id="field-school" readonly />
+              <button type="button" class="field-lock-toggle">🔒</button>
+            </div>
+            <div class="form-field-group">
+              <label>Year Graduated</label>
+              <input type="text" id="field-year-graduated" readonly />
+              <button type="button" class="field-lock-toggle">🔒</button>
+            </div>
+
+            <div class="attachment-title">Documents Added:</div>
+            <div class="attachments-card" id="container-admission-attachments">
+              </div>
+          </div>
+
+        </div>
+
+        <button type="submit" class="btn-update" id="btn-submit-admission-update">Update Record</button>
+      </form>
+    </main>
+  </div>
+
+  <template id="template-attachment-item">
+    <div class="attachment-item">
+      <div class="attachment-meta">
+        <span class="file-icon">📄</span>
+        <span class="file-name"></span>
+      </div>
+      <div class="attachment-actions">
+        <button type="button" class="btn-icon-action action-view-img" style="color:var(--blue-accent); font-weight:700;">View</button>
+        <button type="button" class="btn-icon-action action-delete-img">🗑️</button>
+      </div>
+    </div>
+  </template>
+
+</body>
+</html>

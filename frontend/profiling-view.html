@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>UEP Registrar Admin - Student Profile Audit</title>
+  <link rel="stylesheet" href="production-system.css" />
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="topbar-logo">
+      <img src="ueplogo.png" class="logo" alt="Logo" />
+    </div>
+    <span class="topbar-title">UEP Registrar Admin</span>
+  </div>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <nav class="nav">
+        <a href="dashboard.html" class="nav-item">
+          <span class="nav-icon">📊</span>
+          <span>Dashboard</span>
+        </a>
+        <a href="admission.html" class="nav-item">
+          <span class="nav-icon">📄</span>
+          <span>Admission</span>
+        </a>
+        <a href="profiling.html" class="nav-item active">
+          <span class="nav-icon">👤</span>
+          <span>Profiling</span>
+        </a>
+        <a href="requests.html" class="nav-item">
+          <span class="nav-icon">📁</span>
+          <span>Requests</span>
+        </a>
+      </nav>
+      <a href="profiling.html" class="logout">◄ Return to List</a>
+    </aside>
+
+    <main class="main">
+      <div class="blue-banner">
+        <div class="page-title">PROFILING VIEW</div>
+      </div>
+
+      <form class="form-view-container" id="form-profiling-record" onsubmit="return false;">
+        
+        <div class="form-field-group">
+          <label>Student ID</label>
+          <input type="text" id="field-prof-id" readonly />
+          <button type="button" class="field-lock-toggle">🔒</button>
+        </div>
+
+        <div class="form-split-grid" style="margin-top:24px;">
+          <div class="form-field-group">
+            <label>First Name</label>
+            <input type="text" id="field-prof-firstname" readonly />
+            <button type="button" class="field-lock-toggle">🔒</button>
+          </div>
+          <div class="form-field-group">
+            <label>Middle Name</label>
+            <input type="text" id="field-prof-middlename" readonly />
+            <button type="button" class="field-lock-toggle">🔒</button>
+          </div>
+          <div class="form-field-group">
+            <label>Last Name</label>
+            <input type="text" id="field-prof-lastname" readonly />
+            <button type="button" class="field-lock-toggle">🔒</button>
+          </div>
+        </div>
+
+        <div class="attachment-title" style="margin-top:24px;">Uploaded Document Surrogates:</div>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Id</th>
+                <th>File name</th>
+                <th>File type</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="target-profile-attachments">
+              </tbody>
+          </table>
+        </div>
+
+        <button type="submit" class="btn-update">Update Profile</button>
+      </form>
+    </main>
+  </div>
+
+  <template id="template-profile-file-row">
+    <tr>
+      <td class="file-id"></td>
+      <td class="file-name"></td>
+      <td class="file-type"></td>
+      <td><button type="button" class="btn-view action-view-file">View Document</button></td>
+    </tr>
+  </template>
+
+</body>
+</html>

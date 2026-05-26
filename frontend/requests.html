@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>UEP Registrar Admin - Admission Log Engine</title>
+  <title>UEP Registrar Admin - Document Requests</title>
   <link rel="stylesheet" href="production-system.css" />
 </head>
 <body>
@@ -13,7 +13,7 @@
       <img src="ueplogo.png" class="logo" alt="Logo" />
     </div>
     <span class="topbar-title">UEP Registrar Admin</span>
-    <input type="text" id="input-admission-search" class="search-bar" placeholder="Search admissions..." />
+    <input type="text" id="input-request-search" class="search-bar" placeholder="Search requests..." />
   </div>
 
   <div class="layout">
@@ -23,7 +23,7 @@
           <span class="nav-icon">📊</span>
           <span>Dashboard</span>
         </a>
-        <a href="admission.html" class="nav-item active">
+        <a href="admission.html" class="nav-item">
           <span class="nav-icon">📄</span>
           <span>Admission</span>
         </a>
@@ -31,65 +31,61 @@
           <span class="nav-icon">👤</span>
           <span>Profiling</span>
         </a>
-        <a href="requests.html" class="nav-item">
+        <a href="requests.html" class="nav-item active">
           <span class="nav-icon">📁</span>
           <span>Requests</span>
         </a>
       </nav>
-      <a href="#" class="logout">Logout</a>
+      <a href="selection.html" class="logout">↩ Change Module</a>
     </aside>
 
     <main class="main">
       <div class="blue-banner">
-        <div class="page-title">ADMISSION</div>
+        <div class="page-title">REQUESTS</div>
       </div>
 
       <div class="content-area">
         <div class="table-actions">
-          <button id="action-admission-filter" class="btn-action">⚙ FILTERS</button>
-          <button id="action-admission-export" class="btn-action">⬆ EXPORT</button>
+          <button id="action-request-filter" class="btn-action">⚙ FILTERS</button>
+          <button id="action-request-export" class="btn-action">⬆ EXPORT</button>
         </div>
 
         <div class="table-wrapper">
           <table>
             <thead>
               <tr>
-                <th>Id</th>
-                <th>Admission No.</th>
+                <th>Student ID</th>
                 <th>Name</th>
-                <th>Year Graduated</th>
-                <th>Date Added</th>
+                <th>Date Requested</th>
+                <th>Status</th>
                 <th></th>
               </tr>
             </thead>
-            <tbody id="target-admission-rows">
+            <tbody id="target-request-rows">
               </tbody>
           </table>
         </div>
 
         <div class="table-footer">
-          <span>Rows per page: 
-            <select id="config-admission-pagesize">
-              <option value="8">8</option>
-              <option value="15">15</option>
-            </select>
-          </span>
-          <span id="txt-admission-pagination">0-0 of 0</span>
-          <button id="btn-admission-prev" class="page-btn" disabled>&#8249;</button>
-          <button id="btn-admission-next" class="page-btn" disabled>&#8250;</button>
+          <span>Rows per page: <select id="config-request-pagesize"><option>8</option></select></span>
+          <span id="txt-request-pagination">0-0 of 0</span>
+          <button id="btn-request-prev" class="page-btn" disabled>◄</button>
+          <button id="btn-request-next" class="page-btn" disabled>►</button>
         </div>
       </div>
     </main>
   </div>
 
-  <template id="template-admission-row">
+  <template id="template-request-row">
     <tr>
-      <td class="col-id"></td>
-      <td class="col-admission-no"></td>
+      <td class="col-student-id"></td>
       <td class="col-name"></td>
-      <td class="col-year"></td>
-      <td class="col-date-added"></td>
-      <td><a href="#" class="btn-view route-view-btn">View</a></td>
+      <td class="col-date"></td>
+      <td class="col-status"></td>
+      <td>
+        <button class="btn-view route-view-btn">View</button>
+        <button class="btn-action route-edit-status" style="display:inline-block; margin-left:6px; color:var(--green);">Edit Status</button>
+      </td>
     </tr>
   </template>
 

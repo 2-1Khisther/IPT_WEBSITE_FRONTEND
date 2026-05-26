@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>UEP Registrar Admin - Archiving Registry</title>
+  <link rel="stylesheet" href="production-system.css" />
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="topbar-logo">
+      <img src="ueplogo.png" class="logo" alt="Logo" />
+    </div>
+    <span class="topbar-title">UEP Registrar Admin</span>
+  </div>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <nav class="nav">
+        <a href="archiving-dashboard.html" class="nav-item">
+          <span class="nav-icon">📊</span>
+          <span>Dashboard</span>
+        </a>
+        <a href="archiving-university-registry.html" class="nav-item">
+          <span class="nav-icon">📄</span>
+          <span>University Registry</span>
+        </a>
+        <a href="archiving.html" class="nav-item active">
+          <span class="nav-icon">🗄️</span>
+          <span>Archiving</span>
+        </a>
+        <a href="archiving-system-integrity.html" class="nav-item">
+          <span class="nav-icon">📋</span>
+          <span>System Integrity</span>
+        </a>
+      </nav>
+      <a href="login_page.html" class="logout">Logout</a>
+    </aside>
+
+    <main class="main">
+      <div class="blue-banner">
+        <div class="banner-flex">
+          <div class="page-title">ARCHIVING</div>
+          <input type="text" id="input-archive-search" class="banner-search" placeholder="Search by Student ID or Name..." />
+        </div>
+      </div>
+
+      <div class="archiving-container">
+        
+        <div class="content-area" style="padding: 0;">
+          <div class="table-actions" style="margin-bottom: 14px;">
+            <button class="btn-action" id="action-archive-filter">⚙ FILTERS</button>
+            <button class="btn-action" id="action-archive-export">⬆ EXPORT</button>
+          </div>
+
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Student ID</th>
+                  <th>Name</th>
+                  <th>Course</th>
+                  <th>College</th>
+                  <th>Status</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="target-archive-rows">
+                </tbody>
+            </table>
+          </div>
+
+          <div class="table-footer" style="margin-top: 14px;">
+            <span>Rows per page: 
+              <select id="config-archive-pagesize">
+                <option>8</option>
+                <option>16</option>
+              </select></span>
+            <span id="txt-archive-pagination">0-0 of 0</span>
+            <button class="page-btn" id="btn-archive-prev">◄</button>
+            <button class="page-btn" id="btn-archive-next">►</button>
+          </div>
+        </div>
+
+        <aside class="sidebar-cards">
+          <div class="side-card">
+            <div class="side-card-title">Live Monitoring & Compliance Logs</div>
+            <div class="data-group">
+              <div class="data-label">Archive SSD Usage:</div>
+              <div class="data-value"><strong id="telemetry-ssd-used">-- GB</strong> / 
+                <span id="telemetry-ssd-total">-- TB</span>
+              </div>
+            </div>
+            <div class="data-group" style="margin-bottom:0;">
+              <div class="data-label">Encryption Engine</div>
+              <div class="data-value" id="telemetry-encryption-status">Checking...</div>
+            </div>
+          </div>
+
+          <div class="side-card">
+            <div class="side-card-title">Archival Workflow</div>
+            <button class="btn-block-dark" id="action-bulk-archive-trigger">TRIGGER BULK ARCHIVAL ACTION</button>
+          </div>
+        </aside>
+
+      </div>
+    </main>
+  </div>
+
+  <template id="template-archive-row">
+    <tr>
+      <td class="col-student-id"></td>
+      <td class="col-name"></td>
+      <td class="col-course"></td>
+      <td class="col-college"></td>
+      <td class="col-status"></td>
+      <td><button class="btn-view route-view-btn">View</button></td>
+    </tr>
+  </template>
+
+</body>
+</html>
