@@ -8,76 +8,162 @@
 </head>
 <body>
 
-  <div class="page">
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="topbar-logo"></div>
+    <span class="topbar-title">UEP Registrar Admin</span>
+  </div>
 
-    <!-- Top blue banner -->
-    <div class="banner"></div>
+  <div class="layout">
 
-    <!-- Bottom grey section -->
-    <div class="bottom"></div>
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <nav class="nav">
+        <a href="dashboard.html" class="nav-item active">
+          <span class="nav-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <rect x="3" y="3" width="8" height="8" rx="1"/>
+              <rect x="13" y="3" width="8" height="8" rx="1"/>
+              <rect x="3" y="13" width="8" height="8" rx="1"/>
+              <rect x="13" y="13" width="8" height="8" rx="1"/>
+            </svg>
+          </span>
+          <span>Dashboard</span>
+        </a>
+        <a href="admission.html" class="nav-item">
+          <span class="nav-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 3c1.93 0 3.5 1.57 3.5 3.5S13.93 13 12 13s-3.5-1.57-3.5-3.5S10.07 6 12 6zm7 13H5v-.23c0-.62.28-1.2.76-1.58C7.47 15.82 9.64 15 12 15s4.53.82 6.24 2.19c.48.38.76.97.76 1.58V19z"/>
+            </svg>
+          </span>
+          <span>Admission</span>
+        </a>
+        <a href="profiling.html" class="nav-item">
+          <span class="nav-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/>
+            </svg>
+          </span>
+          <span>Profiling</span>
+        </a>
+        <a href="requests.html" class="nav-item">
+          <span class="nav-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
+            </svg>
+          </span>
+          <span>Requests</span>
+        </a>
+      </nav>
+      <a href="#" class="logout">Logout</a>
+    </aside>
 
-    <!-- Main content -->
-    <div class="content">
+    <!-- MAIN -->
+    <main class="main">
 
-      <!-- Logo placeholder (put your logo.png in the same folder) -->
-      <div class="logo-wrapper">
-        <img src="Logo/ueplogo.png" alt="UEP Logo" class="logo" />
+      <!-- BLUE BANNER -->
+      <div class="blue-banner">
+        <div class="page-title">DASHBOARD</div>
+
+        <!-- STAT CARDS -->
+        <div class="stat-cards">
+          <div class="stat-card">
+            <div class="stat-label">Total number of Students</div>
+            <div class="placeholder-num">—</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Total number of Admissions</div>
+            <div class="placeholder-num">—</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Total number of Profiling</div>
+            <div class="placeholder-num">—</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Total number of Requests</div>
+            <div class="placeholder-num">—</div>
+          </div>
+        </div>
       </div>
 
-      <h1 class="title">UEP Registrar Admin</h1>
-      <p class="subtitle">Please select what you want to use</p>
+      <!-- CHARTS -->
+      <div class="charts-row">
 
-      <!-- Cards -->
-      <div class="cards">
-
-        <!-- Card 1: System Monitoring -->
-        <a href="monitoring.html" class="card" id="card-monitoring">
-          <div class="card-icon">
-            <!-- Monitor SVG icon -->
-            <svg viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg" fill="none">
-              <!-- Yellow circle background -->
-              <circle cx="40" cy="45" r="28" fill="#F5A623"/>
-              <!-- Monitor body -->
-              <rect x="14" y="18" width="52" height="36" rx="4" fill="#3BBFED" stroke="#1a2a7a" stroke-width="2"/>
-              <!-- Screen -->
-              <rect x="18" y="22" width="44" height="26" rx="2" fill="#1a7abf"/>
-              <!-- Bar chart bars -->
-              <rect x="24" y="34" width="5" height="10" rx="1" fill="#fff"/>
-              <rect x="32" y="30" width="5" height="14" rx="1" fill="#fff"/>
-              <rect x="40" y="26" width="5" height="18" rx="1" fill="#fff"/>
-              <rect x="48" y="32" width="5" height="12" rx="1" fill="#fff"/>
-              <!-- Monitor stand -->
-              <rect x="36" y="54" width="8" height="6" rx="1" fill="#3BBFED" stroke="#1a2a7a" stroke-width="1.5"/>
-              <rect x="30" y="59" width="20" height="3" rx="1.5" fill="#1a2a7a"/>
-            </svg>
+        <!-- Chart 1 -->
+        <div class="chart-card">
+          <div class="chart-legend">
+            <span><span class="legend-dot green"></span>Claimed</span>
+            <span><span class="legend-dot blue"></span>For release</span>
+            <span><span class="legend-dot grey"></span>Pending</span>
           </div>
-          <div class="card-label">SYSTEM MONITORING<br/>AND MANAGEMENT</div>
-          <div class="card-sub">(Profiling, Admission, Requests)</div>
-        </a>
-
-        <!-- Card 2: Archiving -->
-        <a href="#" class="card" id="card-archiving">
-          <div class="card-icon">
-            <!-- Archive box SVG icon -->
-            <svg viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg" fill="none">
-              <!-- Box body -->
-              <rect x="12" y="36" width="56" height="34" rx="4" fill="#E8C99A" stroke="#1a2a7a" stroke-width="2"/>
-              <!-- Box lid -->
-              <rect x="8" y="26" width="64" height="14" rx="4" fill="#D4A96A" stroke="#1a2a7a" stroke-width="2"/>
-              <!-- Lid handle -->
-              <rect x="28" y="22" width="24" height="8" rx="4" fill="#E8C99A" stroke="#1a2a7a" stroke-width="2"/>
-              <!-- Drawer slot on body -->
-              <rect x="20" y="48" width="40" height="8" rx="3" fill="#fff" stroke="#1a2a7a" stroke-width="1.5"/>
-              <!-- Drawer handle -->
-              <rect x="33" y="51" width="14" height="3" rx="1.5" fill="#2d50cc"/>
-            </svg>
+          <div class="chart-area">
+            <div class="y-axis">
+              <span>5</span>
+              <span>4</span>
+              <span>3</span>
+              <span>2</span>
+              <span>1</span>
+              <span>0</span>
+            </div>
+            <div class="chart-inner">
+              <div class="grid-lines">
+                <div class="grid-line"></div>
+                <div class="grid-line"></div>
+                <div class="grid-line"></div>
+                <div class="grid-line"></div>
+                <div class="grid-line"></div>
+                <div class="grid-line"></div>
+              </div>
+              <div class="bars">
+                <div class="bar-wrap"><div class="bar green" style="height:60%"></div></div>
+                <div class="bar-wrap"><div class="bar blue" style="height:44%"></div></div>
+                <div class="bar-wrap"><div class="bar grey" style="height:10%"></div></div>
+              </div>
+              <div class="no-data-label">No data yet</div>
+            </div>
           </div>
-          <div class="card-label">ARCHIVING</div>
-        </a>
+          <div class="chart-title">Request count by status</div>
+        </div>
+
+        <!-- Chart 2 -->
+        <div class="chart-card">
+          <div class="chart-legend">
+            <span><span class="legend-dot red"></span>Admission</span>
+            <span><span class="legend-dot purple"></span>Profiling</span>
+            <span><span class="legend-dot yellow"></span>Requests</span>
+          </div>
+          <div class="chart-area">
+            <div class="y-axis">
+              <span>5</span>
+              <span>4</span>
+              <span>3</span>
+              <span>2</span>
+              <span>1</span>
+              <span>0</span>
+            </div>
+            <div class="chart-inner">
+              <div class="grid-lines">
+                <div class="grid-line"></div>
+                <div class="grid-line"></div>
+                <div class="grid-line"></div>
+                <div class="grid-line"></div>
+                <div class="grid-line"></div>
+                <div class="grid-line"></div>
+              </div>
+              <div class="bars">
+                <div class="bar-wrap"><div class="bar red" style="height:60%"></div></div>
+                <div class="bar-wrap"><div class="bar purple" style="height:80%"></div></div>
+                <div class="bar-wrap"><div class="bar yellow" style="height:100%"></div></div>
+              </div>
+              <div class="no-data-label">No data yet</div>
+            </div>
+          </div>
+          <div class="chart-title">Total records per module</div>
+        </div>
 
       </div>
-    </div>
 
+    </main>
   </div>
 
 </body>
