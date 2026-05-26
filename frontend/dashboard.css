@@ -363,7 +363,7 @@ body {
 }
 
 /* ─────────────────────────────────────────
-   CONTENT AREA (Admission)
+   CONTENT AREA
 ───────────────────────────────────────── */
 .content-area {
   padding: 24px 28px;
@@ -451,6 +451,23 @@ tbody td {
   font-style: italic;
   padding: 48px 0;
   font-size: 0.85rem;
+}
+
+/* ── View Button ── */
+.btn-view {
+  display: inline-block;
+  padding: 5px 16px;
+  background-color: var(--navy);
+  color: var(--white);
+  font-size: 0.78rem;
+  font-weight: 700;
+  border-radius: 5px;
+  text-decoration: none;
+  transition: background 0.15s;
+}
+
+.btn-view:hover {
+  background-color: var(--blue-accent);
 }
 
 /* ─────────────────────────────────────────
