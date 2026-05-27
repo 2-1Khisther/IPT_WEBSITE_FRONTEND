@@ -38,18 +38,58 @@ const API_BASE_URL = window.UEP_API_BASE_URL
     || safeLocalStorageGet('uep_api_base_url')
     || API_URLS.production;
 
+const AUTH_TOKEN_KEY = 'uep_registrar_jwt';
+const AUTH_ROLE_KEY = 'uep_registrar_role';
+const STAFF_PORTAL_ROLES = ['staff', 'admin'];
+const ADMIN_ONLY_PAGES = [
+    'archiving-dashboard.html',
+    'archiving.html',
+    'archiving-university-registry.html',
+    'archiving-view.html',
+    'archiving-system-integrity.html'
+];
+
+function getCurrentPageName() {
+    const pathName = window.location.pathname.split('/').pop();
+    return pathName || 'login_page.html';
+}
+
+function isLoginPage() {
+    return getCurrentPageName() === 'login_page.html';
+}
+
+function redirectToLogin() {
+    if (!isLoginPage()) {
+        window.location.replace('login_page.html');
+    }
+}
+
+function getAllowedRolesForCurrentPage() {
+    const pageName = getCurrentPageName();
+
+    if (pageName === 'login_page.html') {
+        return null;
+    }
+
+    if (ADMIN_ONLY_PAGES.includes(pageName)) {
+        return ['admin'];
+    }
+
+    return STAFF_PORTAL_ROLES;
+}
+
 const AppState = {
-    getBearerToken: () => safeLocalStorageGet('uep_registrar_jwt'),
-    setBearerToken: (token) => {
-        if (!safeLocalStorageSet('uep_registrar_jwt', token)) {
+    getBearerToken: () => safeLocalStorageGet(AUTH_TOKEN_KEY),
+    getUserRole: () => safeLocalStorageGet(AUTH_ROLE_KEY),
+    setAuth: (token, role) => {
+        if (!safeLocalStorageSet(AUTH_TOKEN_KEY, token) || !safeLocalStorageSet(AUTH_ROLE_KEY, role)) {
             throw new Error('Browser storage is unavailable. Enable local storage to continue.');
         }
     },
     clearAuth: () => {
-        safeLocalStorageRemove('uep_registrar_jwt');
-        if (!window.location.pathname.includes('login_page.html')) {
-            window.location.href = 'login_page.html';
-        }
+        safeLocalStorageRemove(AUTH_TOKEN_KEY);
+        safeLocalStorageRemove(AUTH_ROLE_KEY);
+        redirectToLogin();
     },
     // Safely handles network headers with Authorization Interceptors
     getHeaders: () => ({
@@ -57,6 +97,44 @@ const AppState = {
         'Authorization': `Bearer ${AppState.getBearerToken()}`
     })
 };
+
+function userCanAccessCurrentPage() {
+    const allowedRoles = getAllowedRolesForCurrentPage();
+
+    if (!allowedRoles) {
+        return true;
+    }
+
+    const token = AppState.getBearerToken();
+    const role = AppState.getUserRole();
+
+    return Boolean(token) && allowedRoles.includes(role);
+}
+
+function enforceRouteGuard() {
+    if (!userCanAccessCurrentPage()) {
+        AppState.clearAuth();
+        return false;
+    }
+
+    return true;
+}
+
+function installAuthorizationFetchInterceptor() {
+    const nativeFetch = window.fetch.bind(window);
+
+    window.fetch = async (...args) => {
+        const response = await nativeFetch(...args);
+
+        if ((response.status === 401 || response.status === 403) && !isLoginPage()) {
+            AppState.clearAuth();
+        }
+
+        return response;
+    };
+}
+
+installAuthorizationFetchInterceptor();
 
 async function parseApiResponse(response) {
     const payload = await response.json().catch(() => ({}));
@@ -120,38 +198,37 @@ function setNoDataLabels(hasData) {
 
 // 2. ROUTER & ROUTE ENGINE INITIALIZATION
 document.addEventListener('DOMContentLoaded', () => {
-    const currentPath = window.location.pathname;
+    const currentPage = getCurrentPageName();
 
-    // Route guards: Force users back to login if token is missing (except on login itself)
-    if (!AppState.getBearerToken() && !currentPath.includes('login_page.html')) {
-        AppState.clearAuth();
+    // Route guards: Force unauthenticated or unauthorized users back to login.
+    if (!enforceRouteGuard()) {
         return;
     }
 
     // Initialize module controllers depending on which page the browser is viewing
-    if (currentPath.includes('login_page.html')) {
+    if (currentPage === 'login_page.html') {
         initLoginController();
-    } else if (currentPath.includes('monitoring.html') || currentPath.includes('dashboard.html')) {
+    } else if (currentPage === 'monitoring.html' || currentPage === 'dashboard.html') {
         initSystemMonitoringDashboard();
-    } else if (currentPath.includes('admission.html')) {
+    } else if (currentPage === 'admission.html') {
         initAdmissionModule();
-    } else if (currentPath.includes('profiling.html')) {
+    } else if (currentPage === 'profiling.html') {
         initProfilingModule();
-    } else if (currentPath.includes('admission-view.html')) {
+    } else if (currentPage === 'admission-view.html') {
         initAdmissionViewModule();
-    } else if (currentPath.includes('profiling-view.html')) {
+    } else if (currentPage === 'profiling-view.html') {
         initProfilingViewModule();
-    } else if (currentPath.includes('requests.html')) {
+    } else if (currentPage === 'requests.html') {
         initRequestModule();
-    } else if (currentPath.includes('request-view.html')) {
+    } else if (currentPage === 'request-view.html') {
         initRequestViewModule();
-    } else if (currentPath.includes('archiving-dashboard.html')) {
+    } else if (currentPage === 'archiving-dashboard.html') {
         initArchivingDashboard();
-    } else if (currentPath.includes('archiving.html') || currentPath.includes('archiving-university-registry.html')) {
+    } else if (currentPage === 'archiving.html' || currentPage === 'archiving-university-registry.html') {
         initArchivingRegistry();
-    } else if (currentPath.includes('archiving-view.html')) {
+    } else if (currentPage === 'archiving-view.html') {
         initArchivingViewDrilldown();
-    } else if (currentPath.includes('archiving-system-integrity.html')) {
+    } else if (currentPage === 'archiving-system-integrity.html') {
         initSystemIntegrityEngine();
     }
 
@@ -194,17 +271,22 @@ function initLoginController() {
 
             const payload = await parseApiResponse(response);
             const token = payload.data && payload.data.access_token;
+            const role = payload.data && payload.data.role;
 
             if (!token) {
                 throw new Error('Login response did not include an access token.');
             }
 
-            AppState.setBearerToken(token); // Secure token storage mapping
+            if (!STAFF_PORTAL_ROLES.includes(role)) {
+                throw new Error('This account is not authorized to access the registrar admin portal.');
+            }
+
+            AppState.setAuth(token, role); // Secure token storage mapping
             
             // Send the authorized user to the System/Archiving selection page
             window.location.href = 'selection.html';
         } catch (err) {
-            safeLocalStorageRemove('uep_registrar_jwt');
+            AppState.clearAuth();
             alert(`Authentication Error: ${err.message}`);
             submitBtn.textContent = "Login";
             submitBtn.disabled = false;
