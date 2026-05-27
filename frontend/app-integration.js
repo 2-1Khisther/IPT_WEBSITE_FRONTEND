@@ -41,7 +41,10 @@ const API_BASE_URL = window.UEP_API_BASE_URL
 const AUTH_TOKEN_KEY = 'uep_registrar_jwt';
 const AUTH_ROLE_KEY = 'uep_registrar_role';
 const STAFF_PORTAL_ROLES = ['staff', 'admin'];
+const STAFF_DEFAULT_PAGE = 'dashboard.html';
+const ADMIN_DEFAULT_PAGE = 'selection.html';
 const ADMIN_ONLY_PAGES = [
+    'selection.html',
     'archiving-dashboard.html',
     'archiving.html',
     'archiving-university-registry.html',
@@ -62,6 +65,18 @@ function redirectToLogin() {
     if (!isLoginPage()) {
         window.location.replace('login_page.html');
     }
+}
+
+function getLandingPageForRole(role) {
+    if (role === 'admin') {
+        return ADMIN_DEFAULT_PAGE;
+    }
+
+    if (role === 'staff') {
+        return STAFF_DEFAULT_PAGE;
+    }
+
+    return 'login_page.html';
 }
 
 function getAllowedRolesForCurrentPage() {
@@ -112,12 +127,42 @@ function userCanAccessCurrentPage() {
 }
 
 function enforceRouteGuard() {
-    if (!userCanAccessCurrentPage()) {
+    const token = AppState.getBearerToken();
+    const role = AppState.getUserRole();
+    const allowedRoles = getAllowedRolesForCurrentPage();
+
+    // If we are on the login page (allowedRoles is null)
+    if (!allowedRoles) {
+        // If user is already authenticated with a valid role, skip login
+        if (token && role && STAFF_PORTAL_ROLES.includes(role)) {
+            window.location.replace(getLandingPageForRole(role));
+            return false;
+        }
+        return true;
+    }
+
+    // If we are on a protected page but have no token
+    if (!token) {
         AppState.clearAuth();
         return false;
     }
 
+    // If we have a token but the role is not allowed for this page
+    if (!allowedRoles.includes(role)) {
+        alert('Access Denied: You do not have the required permissions to access this module.');
+        window.location.replace(getLandingPageForRole(role));
+        return false;
+    }
+
     return true;
+}
+
+function syncSidebarActions() {
+    const role = AppState.getUserRole();
+
+    document.querySelectorAll('[data-admin-only="true"]').forEach((element) => {
+        element.hidden = role !== 'admin';
+    });
 }
 
 function installAuthorizationFetchInterceptor() {
@@ -147,6 +192,14 @@ async function parseApiResponse(response) {
     }
 
     return payload;
+}
+
+function getResponseData(payload) {
+    if (payload && Object.prototype.hasOwnProperty.call(payload, 'data')) {
+        return payload.data || {};
+    }
+
+    return payload || {};
 }
 
 function handleApiError(error) {
@@ -205,6 +258,8 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
+    syncSidebarActions();
+
     // Initialize module controllers depending on which page the browser is viewing
     if (currentPage === 'login_page.html') {
         initLoginController();
@@ -233,13 +288,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Attach global logout hooks across all active viewports
-    const logoutBtn = document.querySelector('.logout, #action-logout-trigger');
-    if (logoutBtn) {
+    const logoutButtons = document.querySelectorAll('[data-action="logout"], #action-logout-trigger');
+    logoutButtons.forEach((logoutBtn) => {
         logoutBtn.addEventListener('click', (e) => {
             e.preventDefault();
             AppState.clearAuth();
         });
-    }
+    });
 });
 
 /* ─────────────────────────────────────────────────────────────────────────
@@ -283,8 +338,8 @@ function initLoginController() {
 
             AppState.setAuth(token, role); // Secure token storage mapping
             
-            // Send the authorized user to the System/Archiving selection page
-            window.location.href = 'selection.html';
+            // Send admins to subsystem selection and staff directly to their only module.
+            window.location.href = getLandingPageForRole(role);
         } catch (err) {
             AppState.clearAuth();
             alert(`Authentication Error: ${err.message}`);
@@ -556,63 +611,84 @@ async function initRequestViewModule() {
 async function initArchivingDashboard() {
     try {
         const response = await fetch(`${API_BASE_URL}/archive/dashboard-summary`, { headers: AppState.getHeaders() });
-        const data = await response.json();
+        const payload = await parseApiResponse(response);
+        const data = getResponseData(payload);
 
-        document.getElementById('metric-summary-students').textContent = data.totalStudents;
-        document.getElementById('metric-summary-archived').textContent = data.totalArchived;
-        document.getElementById('metric-summary-eligible').textContent = data.totalEligible;
+        document.getElementById('metric-summary-students').textContent = data.totalStudents || 0;
+        document.getElementById('metric-summary-archived').textContent = data.totalArchived || 0;
+        document.getElementById('metric-summary-eligible').textContent = data.totalEligible || 0;
 
-        document.getElementById('metric-telemetry-used').textContent = `${data.storageUsedGb} GB`;
-        document.getElementById('metric-telemetry-total').textContent = `${data.storageTotalTb} TB`;
-        document.getElementById('metric-telemetry-encryption').textContent = data.encryptionStatus;
-        document.getElementById('metric-telemetry-checksum').textContent = data.lastChecksumRun;
+        document.getElementById('metric-telemetry-used').textContent = `${data.storageUsedGb || 0} GB`;
+        document.getElementById('metric-telemetry-total').textContent = `${data.storageTotalTb || 0} TB`;
+        document.getElementById('metric-telemetry-encryption').textContent = data.encryptionStatus || 'N/A';
+        document.getElementById('metric-telemetry-checksum').textContent = data.lastChecksumRun || 'Never';
 
         // Animate Archiving Chart Column Bars
-        const ceiling = Math.max(data.totalStudents, data.totalArchived, data.totalEligible, 1);
-        document.getElementById('bar-summary-students').style.height = `${(data.totalStudents / ceiling) * 100}%`;
-        document.getElementById('bar-summary-archived').style.height = `${(data.totalArchived / ceiling) * 100}%`;
-        document.getElementById('bar-summary-eligible').style.height = `${(data.totalEligible / ceiling) * 100}%`;
+        const ceiling = Math.max(data.totalStudents || 0, data.totalArchived || 0, data.totalEligible || 0, 1);
+        document.getElementById('bar-summary-students').style.height = `${((data.totalStudents || 0) / ceiling) * 100}%`;
+        document.getElementById('bar-summary-archived').style.height = `${((data.totalArchived || 0) / ceiling) * 100}%`;
+        document.getElementById('bar-summary-eligible').style.height = `${((data.totalEligible || 0) / ceiling) * 100}%`;
 
     } catch (err) {
+        handleApiError(err);
         console.error('Failed to load archival dashboard variables:', err);
     }
 }
 
 // F. CORE ARCHIVAL PROCESSING TABLE (archiving.html)
 async function initArchivingRegistry() {
-    const tableBody = document.getElementById('target-archive-rows');
-    const template = document.getElementById('template-archive-row');
+    const tableBody = document.getElementById('target-archive-rows') || document.getElementById('target-registry-rows');
+    const template = document.getElementById('template-archive-row') || document.getElementById('template-registry-row');
     if (!tableBody || !template) return;
 
     try {
         const response = await fetch(`${API_BASE_URL}/archive/registry`, { headers: AppState.getHeaders() });
-        const data = await response.json();
+        const payload = await parseApiResponse(response);
+        const data = getResponseData(payload);
+        const students = data.students || [];
+        const hardware = data.hardware || {};
+        const isUniversityRegistry = Boolean(document.getElementById('target-registry-rows'));
 
         tableBody.innerHTML = '';
 
-        data.students.forEach(student => {
+        students.forEach(student => {
             const clone = template.content.cloneNode(true);
             clone.querySelector('.col-student-id').textContent = student.studentId;
             clone.querySelector('.col-name').textContent = student.fullName;
             clone.querySelector('.col-course').textContent = student.course;
             clone.querySelector('.col-college').textContent = student.college;
-            
-            // Render Status Badges programmatically
+            const yearLevelCell = clone.querySelector('.col-year-level');
+            if (yearLevelCell) yearLevelCell.textContent = student.yearLevel || 'N/A';
+
+            const enrollmentStatusCell = clone.querySelector('.col-enrollment-status');
+            if (enrollmentStatusCell) {
+                enrollmentStatusCell.innerHTML = `<span class="status-badge ${student.statusClass || 'status-pending'}">${student.enrollmentStatus || student.statusText || 'ACTIVE'}</span>`;
+            }
+
             const statusTd = clone.querySelector('.col-status');
-            statusTd.innerHTML = `<span class="status-badge ${student.statusClass}">${student.statusText}</span>`;
-            
-            clone.querySelector('.route-view-btn').addEventListener('click', () => {
+            if (statusTd) {
+                statusTd.innerHTML = `<span class="status-badge ${student.statusClass || 'status-pending'}">${student.statusText || 'ACTIVE'}</span>`;
+            }
+
+            const viewButton = clone.querySelector('.route-view-btn, .action-view-student');
+            if (viewButton) viewButton.addEventListener('click', () => {
                 window.location.href = `archiving-view.html?id=${student.studentId}`;
             });
 
             tableBody.appendChild(clone);
         });
 
-        document.getElementById('telemetry-ssd-used').textContent = `${data.hardware.usedGb} GB`;
-        document.getElementById('telemetry-ssd-total').textContent = `${data.hardware.totalTb} TB`;
-        document.getElementById('telemetry-encryption-status').textContent = data.hardware.engineStatus;
+        if (isUniversityRegistry) {
+            document.getElementById('txt-registry-pagination').textContent = students.length ? `1-${students.length} of ${students.length}` : '0-0 of 0';
+        } else {
+            document.getElementById('txt-archive-pagination').textContent = students.length ? `1-${students.length} of ${students.length}` : '0-0 of 0';
+            document.getElementById('telemetry-ssd-used').textContent = `${hardware.usedGb || 0} GB`;
+            document.getElementById('telemetry-ssd-total').textContent = `${hardware.totalTb || 0} TB`;
+            document.getElementById('telemetry-encryption-status').textContent = hardware.engineStatus || 'N/A';
+        }
 
     } catch (err) {
+        handleApiError(err);
         console.error('Error populating archival verification board:', err);
     }
 }
@@ -625,57 +701,73 @@ async function initArchivingViewDrilldown() {
 
     try {
         const response = await fetch(`${API_BASE_URL}/archive/students/${studentId}`, { headers: AppState.getHeaders() });
-        const studentData = await response.json();
+        const payload = await parseApiResponse(response);
+        const studentData = getResponseData(payload);
 
         // Inject Single Entity Values into layout DOM anchors
-        document.getElementById('val-audit-status').textContent = studentData.auditStatus;
-        document.getElementById('val-student-id').textContent = studentData.studentId;
-        document.getElementById('val-student-name').textContent = studentData.fullName;
-        document.getElementById('val-course').textContent = studentData.course;
+        document.getElementById('val-audit-status').textContent = studentData.auditStatus || 'N/A';
+        document.getElementById('val-student-id').textContent = studentData.studentId || 'N/A';
+        document.getElementById('val-student-name').textContent = studentData.fullName || 'N/A';
+        document.getElementById('val-course').textContent = studentData.course || 'N/A';
         document.getElementById('val-year').textContent = studentData.yearLevel || '--';
         
         const badge = document.getElementById('val-badge-status');
-        badge.textContent = studentData.statusText;
-        badge.className = `status-highlight ${studentData.statusClass}`;
-        badge.style.display = 'inline-block';
+        if (badge) {
+            badge.textContent = studentData.statusText || 'Unknown';
+            badge.className = `status-highlight ${studentData.statusClass || ''}`;
+            badge.style.display = 'inline-block';
+        }
 
         // Dynamic compliance checklist extraction using the template node
         const listContainer = document.getElementById('target-ocr-checklist');
         const checklistTemplate = document.getElementById('template-ocr-check-item');
-        listContainer.innerHTML = '';
+        if (listContainer && checklistTemplate) {
+            listContainer.innerHTML = '';
+            const documents = studentData.documents || [];
 
-        studentData.documents.forEach(doc => {
-            const liClone = checklistTemplate.content.cloneNode(true);
-            liClone.querySelector('.check-title').textContent = doc.documentName;
-            if (!doc.passedOcrVerification) {
-                liClone.querySelector('.check-mark').textContent = '❌';
-                liClone.querySelector('.check-mark').style.color = 'var(--red)';
-            }
-            listContainer.appendChild(liClone);
-        });
+            documents.forEach(doc => {
+                const liClone = checklistTemplate.content.cloneNode(true);
+                liClone.querySelector('.check-title').textContent = doc.documentName;
+                if (!doc.passedOcrVerification) {
+                    liClone.querySelector('.check-mark').textContent = '❌';
+                    liClone.querySelector('.check-mark').style.color = 'var(--red)';
+                }
+                listContainer.appendChild(liClone);
+            });
+        }
 
         // Trigger action implementation hook for executing archival
-        document.getElementById('action-archive-execute').onclick = async () => {
-            const execBtn = document.getElementById('action-archive-execute');
-            execBtn.disabled = true;
-            execBtn.textContent = "Processing Vault Link...";
+        const archiveBtn = document.getElementById('action-archive-execute');
+        if (archiveBtn) {
+            archiveBtn.onclick = async () => {
+                archiveBtn.disabled = true;
+                archiveBtn.textContent = "Processing Vault Link...";
 
-            const archiveRes = await fetch(`${API_BASE_URL}/archive/execute/${studentId}`, {
-                method: 'POST',
-                headers: AppState.getHeaders()
-            });
+                try {
+                    const archiveRes = await fetch(`${API_BASE_URL}/archive/execute/${studentId}`, {
+                        method: 'POST',
+                        headers: AppState.getHeaders()
+                    });
 
-            if (archiveRes.ok) {
-                alert('Record securely encrypted and committed to main archive database system successfully.');
-                window.location.href = 'archiving.html';
-            } else {
-                alert('Archival action failure. Review file tracking log parameters.');
-                execBtn.disabled = false;
-                execBtn.textContent = "EXECUTE ARCHIVAL";
-            }
-        };
+                    if (archiveRes.ok) {
+                        alert('Record securely encrypted and committed to main archive database system successfully.');
+                        window.location.href = 'archiving.html';
+                    } else {
+                        const errPayload = await archiveRes.json().catch(() => ({}));
+                        alert(`Archival action failure: ${errPayload.message || 'Review file tracking log parameters.'}`);
+                        archiveBtn.disabled = false;
+                        archiveBtn.textContent = "EXECUTE ARCHIVAL";
+                    }
+                } catch (err) {
+                    alert(`Network Error: ${err.message}`);
+                    archiveBtn.disabled = false;
+                    archiveBtn.textContent = "EXECUTE ARCHIVAL";
+                }
+            };
+        }
 
     } catch (err) {
+        handleApiError(err);
         console.error('Critical archival payload breakdown context:', err);
     }
 }
@@ -687,36 +779,60 @@ async function initSystemIntegrityEngine() {
     if (!tableBody || !template) return;
 
     try {
-        const response = await fetch(`${API_BASE_URL}/integrity/logs`, { headers: AppState.getHeaders() });
-        const logData = await response.json();
-
-        document.getElementById('metric-integrity-validated').textContent = logData.totalFilesVerified;
-        document.getElementById('metric-integrity-bitrot').textContent = logData.bitRotErrorsDetected;
-        document.getElementById('metric-integrity-timestamp').textContent = logData.lastExecutionTime;
-
-        tableBody.innerHTML = '';
-
-        logData.runs.forEach(run => {
-            const clone = template.content.cloneNode(true);
-            clone.querySelector('.col-run-id').textContent = run.runId;
-            clone.querySelector('.col-date').textContent = run.executionDate;
-            clone.querySelector('.col-time').textContent = run.executionTime;
-            clone.querySelector('.col-files-count').textContent = run.filesProcessedCount;
-            clone.querySelector('.col-errors-count').textContent = run.errorsFound;
-            
-            // Programmatically define class based on checksum index ratios
-            const scoreTd = clone.querySelector('.col-score-badge');
-            let scoreClass = 'score-perfect';
-            if (run.score < 85) scoreClass = 'score-alert';
-            else if (run.score < 100) scoreClass = 'score-warning';
-
-            scoreTd.innerHTML = `<span class="${scoreClass}">${run.score}%</span>`;
-            tableBody.appendChild(clone);
-        });
+        const logData = await fetchIntegrityLogData();
+        renderIntegrityLogData(logData, tableBody, template);
 
     } catch (err) {
+        handleApiError(err);
         console.error('Error fetching integrity snapshot registries:', err);
     }
+}
+
+async function fetchIntegrityLogData() {
+    const response = await fetch(`${API_BASE_URL}/integrity/logs`, { headers: AppState.getHeaders() });
+
+    if (response.status !== 404) {
+        const payload = await parseApiResponse(response);
+        return getResponseData(payload);
+    }
+
+    const summaryResponse = await fetch(`${API_BASE_URL}/archive/dashboard-summary`, { headers: AppState.getHeaders() });
+    const summaryPayload = await parseApiResponse(summaryResponse);
+    const summary = getResponseData(summaryPayload);
+
+    return {
+        totalFilesVerified: 0,
+        bitRotErrorsDetected: 0,
+        lastExecutionTime: summary.lastChecksumRun || 'No runs yet',
+        runs: []
+    };
+}
+
+function renderIntegrityLogData(logData, tableBody, template) {
+    document.getElementById('metric-integrity-validated').textContent = logData.totalFilesVerified || 0;
+    document.getElementById('metric-integrity-bitrot').textContent = logData.bitRotErrorsDetected || 0;
+    document.getElementById('metric-integrity-timestamp').textContent = logData.lastExecutionTime || 'N/A';
+
+    tableBody.innerHTML = '';
+    const runs = logData.runs || [];
+
+    runs.forEach(run => {
+        const clone = template.content.cloneNode(true);
+        clone.querySelector('.col-run-id').textContent = run.runId;
+        clone.querySelector('.col-date').textContent = run.executionDate;
+        clone.querySelector('.col-time').textContent = run.executionTime;
+        clone.querySelector('.col-files-count').textContent = run.filesProcessedCount;
+        clone.querySelector('.col-errors-count').textContent = run.errorsFound;
+
+        // Programmatically define class based on checksum index ratios
+        const scoreTd = clone.querySelector('.col-score-badge');
+        let scoreClass = 'score-perfect';
+        if (run.score < 85) scoreClass = 'score-alert';
+        else if (run.score < 100) scoreClass = 'score-warning';
+
+        scoreTd.innerHTML = `<span class="${scoreClass}">${run.score}%</span>`;
+        tableBody.appendChild(clone);
+    });
 }
 // ATTACH LOCK MUTATION EVENT LISTENERS
 function enableFormLockToggles() {

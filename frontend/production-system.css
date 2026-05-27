@@ -179,13 +179,31 @@ body {
   justify-content: center;
 }
 
+.sidebar-actions {
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.sidebar-action,
 .logout {
+  display: block;
   padding: 16px 20px;
   font-size: 0.82rem;
   color: #ff6b6b;
   text-decoration: none;
   font-weight: 600;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.sidebar-action + .sidebar-action {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.sidebar-action:hover,
+.logout:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.sidebar-action[hidden] {
+  display: none;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
