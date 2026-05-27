@@ -141,6 +141,10 @@ document.addEventListener('DOMContentLoaded', () => {
         initAdmissionViewModule();
     } else if (currentPath.includes('profiling-view.html')) {
         initProfilingViewModule();
+    } else if (currentPath.includes('requests.html')) {
+        initRequestModule();
+    } else if (currentPath.includes('request-view.html')) {
+        initRequestViewModule();
     } else if (currentPath.includes('archiving-dashboard.html')) {
         initArchivingDashboard();
     } else if (currentPath.includes('archiving.html')) {
@@ -389,6 +393,80 @@ async function initProfilingViewModule() {
     } catch (err) {
         handleApiError(err);
         console.error('Failed to load profiling detail:', err);
+    }
+}
+
+// D4. REQUESTS LISTING (requests.html)
+async function initRequestModule() {
+    const tableBody = document.getElementById('target-request-rows');
+    const template = document.getElementById('template-request-row');
+    if (!tableBody || !template) return;
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/requests`, { headers: AppState.getHeaders() });
+        const payload = await parseApiResponse(response);
+        const requests = payload.data || [];
+
+        tableBody.innerHTML = '';
+
+        requests.forEach(record => {
+            const clone = template.content.cloneNode(true);
+            clone.querySelector('.col-student-id').textContent = record.studentId;
+            clone.querySelector('.col-name').textContent = record.fullName;
+            clone.querySelector('.col-date').textContent = record.dateRequested;
+            
+            const statusTd = clone.querySelector('.col-status');
+            let statusClass = 'status-pending';
+            if (record.status === 'URGENT') statusClass = 'status-urgent';
+            else if (record.status === 'DONE') statusClass = 'status-archived';
+            
+            statusTd.innerHTML = `<span class="status-badge ${statusClass}">${record.status}</span>`;
+            
+            clone.querySelector('.route-view-btn').addEventListener('click', () => {
+                window.location.href = `request-view.html?id=${record.studentId}`;
+            });
+
+            tableBody.appendChild(clone);
+        });
+
+        document.getElementById('txt-request-pagination').textContent = `1-${requests.length} of ${requests.length}`;
+    } catch (err) {
+        handleApiError(err);
+        console.error('Failed to populate request table:', err);
+    }
+}
+
+// D5. REQUEST DETAIL VIEW (request-view.html)
+async function initRequestViewModule() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const studentId = urlParams.get('id');
+    if (!studentId) return;
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/requests/${studentId}`, { headers: AppState.getHeaders() });
+        const payload = await parseApiResponse(response);
+        const data = payload.data;
+
+        document.getElementById('req-view-id').textContent = data.studentId;
+        document.getElementById('req-view-name').textContent = data.fullName;
+        document.getElementById('req-view-course').textContent = data.course;
+        document.getElementById('req-view-year').textContent = data.yearLevel;
+
+        const tableBody = document.getElementById('target-request-items');
+        const template = document.getElementById('template-request-item-row');
+        tableBody.innerHTML = '';
+
+        data.items.forEach(item => {
+            const clone = template.content.cloneNode(true);
+            clone.querySelector('.item-id').textContent = item.id;
+            clone.querySelector('.item-name').textContent = item.document;
+            clone.querySelector('.item-qty').textContent = item.quantity;
+            tableBody.appendChild(clone);
+        });
+
+    } catch (err) {
+        handleApiError(err);
+        console.error('Failed to load request detail:', err);
     }
 }
 
