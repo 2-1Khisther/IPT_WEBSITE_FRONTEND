@@ -4,14 +4,52 @@
  */
 
 // 1. GLOBAL CONFIGURATION & STATE MANAGEMENT
-const API_BASE_URL = window.location.origin + '/api/v1'; 
+const API_URLS = {
+    production: 'https://registrar-office-api.eastasia.cloudapp.azure.com/api/v1',
+    local: 'http://127.0.0.1:8000/api/v1'
+};
+
+function safeLocalStorageGet(key) {
+    try {
+        return window.localStorage.getItem(key);
+    } catch (error) {
+        return null;
+    }
+}
+
+function safeLocalStorageSet(key, value) {
+    try {
+        window.localStorage.setItem(key, value);
+        return true;
+    } catch (error) {
+        return false;
+    }
+}
+
+function safeLocalStorageRemove(key) {
+    try {
+        window.localStorage.removeItem(key);
+    } catch (error) {
+        // Storage may be unavailable in private or locked-down browser contexts.
+    }
+}
+
+const API_BASE_URL = window.UEP_API_BASE_URL
+    || safeLocalStorageGet('uep_api_base_url')
+    || API_URLS.production;
 
 const AppState = {
-    getBearerToken: () => localStorage.getItem('uep_registrar_jwt'),
-    setBearerToken: (token) => localStorage.setItem('uep_registrar_jwt', token),
+    getBearerToken: () => safeLocalStorageGet('uep_registrar_jwt'),
+    setBearerToken: (token) => {
+        if (!safeLocalStorageSet('uep_registrar_jwt', token)) {
+            throw new Error('Browser storage is unavailable. Enable local storage to continue.');
+        }
+    },
     clearAuth: () => {
-        localStorage.removeItem('uep_registrar_jwt');
-        window.location.href = 'login_page.html';
+        safeLocalStorageRemove('uep_registrar_jwt');
+        if (!window.location.pathname.includes('login_page.html')) {
+            window.location.href = 'login_page.html';
+        }
     },
     // Safely handles network headers with Authorization Interceptors
     getHeaders: () => ({
@@ -19,6 +57,66 @@ const AppState = {
         'Authorization': `Bearer ${AppState.getBearerToken()}`
     })
 };
+
+async function parseApiResponse(response) {
+    const payload = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+        const error = new Error(payload.message || 'Request failed.');
+        error.status = response.status;
+        error.payload = payload;
+        throw error;
+    }
+
+    return payload;
+}
+
+function handleApiError(error) {
+    if (error.status === 401 || error.status === 403) {
+        AppState.clearAuth();
+    }
+
+    console.error(error);
+}
+
+function requireDashboardCount(stats, key) {
+    if (!Object.prototype.hasOwnProperty.call(stats, key)) {
+        throw new Error(`Dashboard response missing ${key}.`);
+    }
+
+    const count = Number(stats[key]);
+
+    if (!Number.isInteger(count) || count < 0) {
+        throw new Error(`Dashboard response has invalid ${key}.`);
+    }
+
+    return count;
+}
+
+function renderYAxisLabels(peakValue) {
+    const max = Math.max(5, Math.ceil(peakValue));
+
+    document.querySelectorAll('.chart-card .y-axis').forEach((axis) => {
+        const labels = axis.querySelectorAll('span');
+        labels.forEach((label, index) => {
+            if (index === labels.length - 1) {
+                label.textContent = '0';
+                return;
+            }
+
+            label.textContent = Math.ceil(max * ((labels.length - 1 - index) / (labels.length - 1)));
+        });
+    });
+}
+
+function setNoDataLabels(hasData) {
+    ['msg-chart-requests-nodata', 'msg-chart-modules-nodata'].forEach((id) => {
+        const label = document.getElementById(id);
+        if (label) {
+            label.style.display = hasData ? 'none' : 'block';
+        }
+    });
+}
 
 // 2. ROUTER & ROUTE ENGINE INITIALIZATION
 document.addEventListener('DOMContentLoaded', () => {
@@ -39,6 +137,10 @@ document.addEventListener('DOMContentLoaded', () => {
         initAdmissionModule();
     } else if (currentPath.includes('profiling.html')) {
         initProfilingModule();
+    } else if (currentPath.includes('admission-view.html')) {
+        initAdmissionViewModule();
+    } else if (currentPath.includes('profiling-view.html')) {
+        initProfilingViewModule();
     } else if (currentPath.includes('archiving-dashboard.html')) {
         initArchivingDashboard();
     } else if (currentPath.includes('archiving.html')) {
@@ -80,20 +182,25 @@ function initLoginController() {
             submitBtn.textContent = "Authenticating...";
             submitBtn.disabled = true;
 
-            const response = await fetch(`${API_BASE_URL}/auth/login`, {
+            const response = await fetch(`${API_BASE_URL}/staff/login`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username: usernameInput, password: passwordInput })
+                body: JSON.stringify({ staff_id: usernameInput, password: passwordInput })
             });
 
-            if (!response.ok) throw new Error('Invalid credentials or unauthorized personnel.');
+            const payload = await parseApiResponse(response);
+            const token = payload.data && payload.data.access_token;
 
-            const data = await response.json();
-            AppState.setBearerToken(data.token); // Secure token storage mapping
+            if (!token) {
+                throw new Error('Login response did not include an access token.');
+            }
+
+            AppState.setBearerToken(token); // Secure token storage mapping
             
             // Send the authorized user to the System/Archiving selection page
             window.location.href = 'selection.html';
         } catch (err) {
+            safeLocalStorageRemove('uep_registrar_jwt');
             alert(`Authentication Error: ${err.message}`);
             submitBtn.textContent = "Login";
             submitBtn.disabled = false;
@@ -104,11 +211,17 @@ function initLoginController() {
 // B. SYSTEM MONITORING SUITE (monitoring.html / dashboard.html)
 async function initSystemMonitoringDashboard() {
     try {
-        const response = await fetch(`${API_BASE_URL}/monitoring/summary`, {
+        const response = await fetch(`${API_BASE_URL}/dashboard/stats`, {
             headers: AppState.getHeaders()
         });
-        if (!response.ok) throw new Error('Failed to retrieve system monitoring telemetry.');
-        const data = await response.json();
+        const payload = await parseApiResponse(response);
+        const stats = payload.data || {};
+        const pendingRequests = requireDashboardCount(stats, 'pending_requests');
+        const urgentRequests = requireDashboardCount(stats, 'urgent_requests');
+        const archivedStudents = requireDashboardCount(stats, 'archived_students');
+        const totalAdmissions = requireDashboardCount(stats, 'total_admissions');
+        const totalProfiles = requireDashboardCount(stats, 'total_profiles');
+        const hasDashboardData = (pendingRequests + urgentRequests + archivedStudents) > 0;
 
         // Target and map dynamic card stats
         const elements = {
@@ -118,24 +231,33 @@ async function initSystemMonitoringDashboard() {
             requests: document.getElementById('monitor-metric-requests') || document.getElementById('core-metric-requests')
         };
 
-        if (elements.students) elements.students.textContent = data.totalStudents;
-        if (elements.admissions) elements.admissions.textContent = data.totalAdmissions;
-        if (elements.profiling) elements.profiling.textContent = data.totalProfiling;
-        if (elements.requests) elements.requests.textContent = data.totalRequests;
+        if (elements.students) elements.students.textContent = archivedStudents;
+        if (elements.admissions) elements.admissions.textContent = totalAdmissions;
+        if (elements.profiling) elements.profiling.textContent = totalProfiles;
+        if (elements.requests) elements.requests.textContent = pendingRequests;
 
         // Render dynamic heights for native CSS bar charts based on peak values
-        const peakValue = Math.max(data.requestsClaimed, data.requestsRelease, data.requestsPending, 1);
+        const peakValue = Math.max(archivedStudents, totalAdmissions, pendingRequests, 1);
+        renderYAxisLabels(peakValue);
+        setNoDataLabels(hasDashboardData);
         
         const barClaimed = document.getElementById('monitor-bar-claimed') || document.getElementById('dom-bar-claimed');
         const barRelease = document.getElementById('monitor-bar-release') || document.getElementById('dom-bar-release');
         const barPending = document.getElementById('monitor-bar-pending') || document.getElementById('dom-bar-pending');
 
-        if (barClaimed) barClaimed.style.height = `${(data.requestsClaimed / peakValue) * 100}%`;
-        if (barRelease) barRelease.style.height = `${(data.requestsRelease / peakValue) * 100}%`;
-        if (barPending) barPending.style.height = `${(data.requestsPending / peakValue) * 100}%`;
+        if (barClaimed) barClaimed.style.height = `${(archivedStudents / peakValue) * 100}%`;
+        if (barRelease) barRelease.style.height = `${(totalAdmissions / peakValue) * 100}%`;
+        if (barPending) barPending.style.height = `${(pendingRequests / peakValue) * 100}%`;
+
+        const barAdmission = document.getElementById('dom-bar-admission');
+        const barProfiling = document.getElementById('dom-bar-profiling');
+        const barRequests = document.getElementById('dom-bar-requests');
+        if (barAdmission) barAdmission.style.height = `${(totalAdmissions / peakValue) * 100}%`;
+        if (barProfiling) barProfiling.style.height = `${(totalProfiles / peakValue) * 100}%`;
+        if (barRequests) barRequests.style.height = `${(pendingRequests / peakValue) * 100}%`;
 
     } catch (err) {
-        console.error(err);
+        handleApiError(err);
     }
 }
 
@@ -147,7 +269,8 @@ async function initAdmissionModule() {
 
     try {
         const response = await fetch(`${API_BASE_URL}/admissions`, { headers: AppState.getHeaders() });
-        const admissions = await response.json();
+        const payload = await parseApiResponse(response);
+        const admissions = payload.data || [];
 
         tableBody.innerHTML = ''; // Wipe loading placeholder
 
@@ -164,6 +287,7 @@ async function initAdmissionModule() {
 
         document.getElementById('txt-admission-pagination').textContent = `1-${admissions.length} of ${admissions.length}`;
     } catch (err) {
+        handleApiError(err);
         console.error('Failed to populate admissions table:', err);
     }
 }
@@ -176,7 +300,8 @@ async function initProfilingModule() {
 
     try {
         const response = await fetch(`${API_BASE_URL}/profiles`, { headers: AppState.getHeaders() });
-        const profiles = await response.json();
+        const payload = await parseApiResponse(response);
+        const profiles = payload.data || [];
 
         tableBody.innerHTML = '';
 
@@ -191,7 +316,79 @@ async function initProfilingModule() {
 
         document.getElementById('txt-profiling-pagination').textContent = `1-${profiles.length} of ${profiles.length}`;
     } catch (err) {
+        handleApiError(err);
         console.error('Failed to populate profiling rows:', err);
+    }
+}
+
+// D2. ADMISSION DETAIL VIEW (admission-view.html)
+async function initAdmissionViewModule() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const admissionId = urlParams.get('id');
+    if (!admissionId) return;
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/admissions/${admissionId}`, { headers: AppState.getHeaders() });
+        const payload = await parseApiResponse(response);
+        const data = payload.data;
+
+        document.getElementById('field-admission-no').value = data.admissionNo;
+        document.getElementById('field-first-name').value = data.firstName;
+        document.getElementById('field-middle-name').value = data.middleName;
+        document.getElementById('field-last-name').value = data.lastName;
+        document.getElementById('field-dob').value = data.dob;
+        document.getElementById('field-pob').value = data.pob;
+        document.getElementById('field-address').value = data.address;
+        document.getElementById('field-email').value = data.email;
+        document.getElementById('field-year-graduated').value = data.yearGraduated;
+
+        const attachmentContainer = document.getElementById('container-admission-attachments');
+        const attachmentTemplate = document.getElementById('template-attachment-item');
+        attachmentContainer.innerHTML = '';
+
+        data.documents.forEach(doc => {
+            const clone = attachmentTemplate.content.cloneNode(true);
+            clone.querySelector('.file-name').textContent = doc.name;
+            attachmentContainer.appendChild(clone);
+        });
+
+    } catch (err) {
+        handleApiError(err);
+        console.error('Failed to load admission detail:', err);
+    }
+}
+
+// D3. PROFILING DETAIL VIEW (profiling-view.html)
+async function initProfilingViewModule() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const studentId = urlParams.get('id');
+    if (!studentId) return;
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/profiles/${studentId}`, { headers: AppState.getHeaders() });
+        const payload = await parseApiResponse(response);
+        const data = payload.data;
+
+        document.getElementById('field-prof-id').value = data.studentId;
+        document.getElementById('field-prof-firstname').value = data.firstName;
+        document.getElementById('field-prof-middlename').value = data.middleName;
+        document.getElementById('field-prof-lastname').value = data.lastName;
+
+        const tableBody = document.getElementById('target-profile-attachments');
+        const template = document.getElementById('template-profile-file-row');
+        tableBody.innerHTML = '';
+
+        data.documents.forEach(doc => {
+            const clone = template.content.cloneNode(true);
+            clone.querySelector('.file-id').textContent = doc.id;
+            clone.querySelector('.file-name').textContent = doc.name;
+            clone.querySelector('.file-type').textContent = doc.type;
+            tableBody.appendChild(clone);
+        });
+
+    } catch (err) {
+        handleApiError(err);
+        console.error('Failed to load profiling detail:', err);
     }
 }
 
