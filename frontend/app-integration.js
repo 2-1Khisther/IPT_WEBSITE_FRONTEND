@@ -147,11 +147,11 @@ document.addEventListener('DOMContentLoaded', () => {
         initRequestViewModule();
     } else if (currentPath.includes('archiving-dashboard.html')) {
         initArchivingDashboard();
-    } else if (currentPath.includes('archiving.html')) {
+    } else if (currentPath.includes('archiving.html') || currentPath.includes('archiving-university-registry.html')) {
         initArchivingRegistry();
     } else if (currentPath.includes('archiving-view.html')) {
         initArchivingViewDrilldown();
-    } else if (currentPath.includes('system-integrity.html')) {
+    } else if (currentPath.includes('archiving-system-integrity.html')) {
         initSystemIntegrityEngine();
     }
 
