@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>UEP Registrar Admin - Integrity Verifier</title>
+  <link rel="stylesheet" href="production-system.css" />
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="topbar-logo"><img src="ueplogo.png" class="logo" alt="Logo" /></div>
+    <span class="topbar-title">UEP Registrar Admin</span>
+    <input type="text" id="input-integrity-search" class="search-bar" placeholder="Search execution logs..." />
+  </div>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <nav class="nav">
+        <a href="archiving-dashboard.html" class="nav-item">
+          <span class="nav-icon">📊</span>
+          <span>Dashboard</span>
+        </a>
+        <a href="archiving-university-registry.html" class="nav-item">
+          <span class="nav-icon">📄</span>
+          <span>University Registry</span>
+        </a>
+        <a href="archiving.html" class="nav-item">
+          <span class="nav-icon">🗄️</span>
+          <span>Archiving</span>
+        </a>
+        <a href="archiving-system-integrity.html" class="nav-item active">
+          <span class="nav-icon">📋</span>
+          <span>System Integrity</span>
+        </a>
+      </nav>
+      <a href="selection.html" class="logout">↩ Change Module</a>
+    </aside>
+
+    <main class="main">
+      <div class="blue-banner">
+        <div class="page-title">SYSTEM INTEGRITY</div>
+        
+        <div class="stat-cards" style="grid-template-columns: repeat(3, 1fr);">
+          <div class="stat-card">
+            <div class="stat-label">Total Files Validated</div>
+            <div class="stat-value placeholder-num" id="metric-integrity-validated">--</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Bit Rot Detection</div>
+            <div class="stat-value placeholder-num" id="metric-integrity-bitrot" style="color: var(--red);">--</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Latest Checksum Run</div>
+            <div class="stat-value placeholder-num" id="metric-integrity-timestamp" style="font-size: 1.15rem; font-weight:800; line-height:3.2;">--</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="content-area">
+        <div class="table-actions">
+          <button id="action-integrity-run" class="btn-action" style="background-color: var(--navy); color: var(--white);">⚡ EXECUTE SYSTEM CHECKSUM LOOKUP</button>
+          <button id="action-integrity-export" class="btn-action">⬆ EXPORT LOGS</button>
+        </div>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Run ID</th>
+                <th>Date</th>
+                <th>Time</th>
+                <th>Files Validated</th>
+                <th>Errors Detected</th>
+                <th>Integrity Score</th>
+              </tr>
+            </thead>
+            <tbody id="target-integrity-rows">
+              </tbody>
+          </table>
+        </div>
+
+        <div class="table-footer">
+          <span>Rows per page: 
+            <select id="config-integrity-pagesize"><option>8</option><option>20</option></select>
+          </span>
+          <span id="txt-integrity-pagination">0-0 of 0</span>
+          <button id="btn-integrity-prev" class="page-btn" disabled>◄</button>
+          <button id="btn-integrity-next" class="page-btn" disabled>►</button>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <template id="template-integrity-row">
+    <tr>
+      <td class="col-run-id"></td>
+      <td class="col-date"></td>
+      <td class="col-time"></td>
+      <td class="col-files-count"></td>
+      <td class="col-errors-count"></td>
+      <td class="col-score-badge"></td>
+    </tr>
+  </template>
+
+</body>
+</html>

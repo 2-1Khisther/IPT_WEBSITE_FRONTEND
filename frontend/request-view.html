@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>UEP Registrar Admin - Request Details</title>
+  <link rel="stylesheet" href="production-system.css" />
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="topbar-logo">
+      <img src="ueplogo.png" class="logo" alt="Logo" />
+    </div>
+    <span class="topbar-title">UEP Registrar Admin</span>
+  </div>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <nav class="nav">
+        <a href="dashboard.html" class="nav-item">
+          <span class="nav-icon">📊</span>
+          <span>Dashboard</span>
+        </a>
+        <a href="admission.html" class="nav-item">
+          <span class="nav-icon">📄</span>
+          <span>Admission</span>
+        </a>
+        <a href="profiling.html" class="nav-item">
+          <span class="nav-icon">👤</span>
+          <span>Profiling</span>
+        </a>
+        <a href="requests.html" class="nav-item active">
+          <span class="nav-icon">📁</span>
+          <span>Requests</span>
+        </a>
+      </nav>
+      <a href="requests.html" class="logout">◄ Return to List</a>
+    </aside>
+
+    <main class="main">
+      <div class="blue-banner">
+        <div class="page-title">REQUEST VIEW</div>
+      </div>
+
+      <div class="form-view-container">
+        <div class="audit-header" style="margin-bottom: 24px;">
+          <p>Student ID: <strong id="req-view-id">--</strong></p>
+          <p>Name: <strong id="req-view-name">--</strong></p>
+          <p>Course: <strong id="req-view-course">--</strong></p>
+          <p>Year Level: <strong id="req-view-year">--</strong></p>
+        </div>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Id</th>
+                <th>Document</th>
+                <th>Quantity</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="target-request-items">
+              </tbody>
+          </table>
+        </div>
+
+        <button type="button" class="btn-update" id="btn-add-request-item" style="background-color: var(--topbar-bg);">Add Document Request</button>
+      </div>
+    </main>
+  </div>
+
+  <template id="template-request-item-row">
+    <tr>
+      <td class="item-id"></td>
+      <td class="item-name"></td>
+      <td class="item-qty"></td>
+      <td><button type="button" class="btn-icon-action action-delete-item">🗑️</button></td>
+    </tr>
+  </template>
+
+</body>
+</html>

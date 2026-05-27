@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>UEP Registrar Admin - Archiving Audit View</title>
+  <link rel="stylesheet" href="production-system.css" />
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="topbar-logo">
+      <img src="ueplogo.png" class="logo" alt="Logo" />
+    </div>
+    <span class="topbar-title">UEP Registrar Admin</span>
+  </div>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <nav class="nav">
+        <a href="archiving-dashboard.html" class="nav-item">
+          <span class="nav-icon">📊</span>
+          <span>Dashboard</span>
+        </a>
+        <a href="archiving-university-registry.html" class="nav-item">
+          <span class="nav-icon">📄</span>
+          <span>University Registry</span>
+        </a>
+        <a href="archiving.html" class="nav-item active">
+          <span class="nav-icon">🗄️</span>
+          <span>Archiving</span>
+        </a>
+        <a href="archiving-system-integrity.html" class="nav-item">
+          <span class="nav-icon">📋</span>
+          <span>System Integrity</span>
+        </a>
+      </nav>
+      <a href="login_page.html" class="logout">Logout</a>
+    </aside>
+
+    <main class="main">
+      <div class="blue-banner">
+        <div class="page-title" style="margin-bottom: 5px;">ARCHIVING VIEW</div>
+        <div class="subtitle">Student Status Audit: <strong id="val-audit-status">--</strong></div>
+      </div>
+
+      <div class="archiving-container">
+        
+        <div class="audit-card">
+          <div class="audit-header">
+            <p>ID: <strong id="val-student-id">--</strong></p>
+            <p>Name: <strong id="val-student-name">--</strong></p>
+            <p>Course: <strong id="val-course">--</strong></p>
+            <p>Year Level: <strong id="val-year">--</strong></p>
+            <p>Status: <span id="val-badge-status" class="status-highlight" style="display:none;">--</span></p>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="quality-check-title">Document Quality Check</div>
+          <ul class="check-list" id="target-ocr-checklist">
+            </ul>
+        </div>
+
+        <aside class="sidebar-cards">
+          <div class="side-card">
+            <div class="side-card-title">Archival Workflow</div>
+            <button class="btn-block-dark" id="action-archive-execute">EXECUTE ARCHIVAL</button>
+            <button class="btn-block-outline" id="action-archive-review">Review Linked Documents</button>
+          </div>
+
+          <div class="side-card">
+            <div class="side-card-title">Extraction and Encryption Settings</div>
+            
+            <div class="progress-wrapper">
+              <span class="data-value">Status:</span>
+              <div class="progress-track">
+                <div class="progress-fill" id="pb-extraction-fill" style="width: 0%;"></div>
+                <span class="progress-text" id="pb-extraction-text">Awaiting data...</span>
+              </div>
+            </div>
+
+            <div class="data-group">
+              <div class="data-value">File format: <strong id="val-file-format">--</strong></div>
+            </div>
+            
+            <div class="data-group" style="margin-bottom:0;">
+              <div class="data-value">Encryption Key: <button class="btn-small" id="action-key-reveal">View</button></div>
+            </div>
+          </div>
+        </aside>
+
+      </div>
+    </main>
+  </div>
+
+  <template id="template-ocr-check-item">
+    <li>
+      <span class="check-title"></span> 
+      <span class="check-mark">✔</span>
+    </li>
+  </template>
+
+</body>
+</html>

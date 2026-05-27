@@ -3,43 +3,37 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>UEP Registrar Admin</title>
-  <link rel="stylesheet" href="login_page.css" />
+  <title>UEP Registrar Admin - Gateway</title>
+  <link rel="stylesheet" href="production-system.css" />
 </head>
 <body>
 
   <div class="page">
+    <div class="login-banner"></div>
 
-    <!-- Top blue banner -->
-    <div class="banner"></div>
-
-    <!-- Login card -->
-    <div class="card">
-
-      <!-- Logo placeholder (replace img src with your logo file) -->
+    <div class="login-card">
       <div class="logo-wrapper">
-        <img src="frontend/ueplogo.png" alt="UEP Logo" class="logo" />
+        <img src="ueplogo.png" alt="UEP Logo" class="logo" />
       </div>
 
       <h1 class="title">UEP Registrar Admin</h1>
 
-      <div class="form-group">
-        <label for="username">Username:</label>
-        <input type="text" id="username" name="username" autocomplete="username" />
-      </div>
+      <form id="form-auth-submission" onsubmit="window.location.href='selection.html'; return false;">
+        <div class="form-group">
+          <label for="input-auth-user">Username:</label>
+          <input type="text" id="input-auth-user" autocomplete="username" required />
+        </div>
 
-      <div class="form-group">
-        <label for="password">Password:</label>
-        <input type="password" id="password" name="password" autocomplete="current-password" />
-      </div>
+        <div class="form-group">
+          <label for="input-auth-pass">Password:</label>
+          <input type="password" id="input-auth-pass" autocomplete="current-password" required />
+        </div>
 
-      <button class="btn-login" type="button" onclick="window.location.href='dashboard.html'">Login</button>
-
+        <button id="btn-auth-execute" class="btn-login" type="submit">Login</button>
+      </form>
     </div>
 
-    <!-- Bottom grey section -->
-    <div class="bottom"></div>
-
+    <div class="login-bottom"></div>
   </div>
 
 </body>
