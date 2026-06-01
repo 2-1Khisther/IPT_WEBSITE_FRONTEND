@@ -6,7 +6,7 @@
 // 1. GLOBAL CONFIGURATION & STATE MANAGEMENT
 const API_URLS = {
     production: 'https://registrar-office-api.eastasia.cloudapp.azure.com/api/v1',
-    local: 'http://127.0.0.1:8000/api/v1'
+    local: 'http://127.0.0.1/api/v1'
 };
 
 function safeLocalStorageGet(key) {
@@ -40,9 +40,19 @@ function resolveDefaultApiUrl() {
         : API_URLS.production;
 }
 
+function resolveConfiguredApiUrl() {
+    const storedUrl = normalizeStoredValue(safeLocalStorageGet('uep_api_base_url'));
+    const isLocalPage = ['127.0.0.1', 'localhost'].includes(window.location.hostname);
+
+    if (isLocalPage && /^http:\/\/(127\.0\.0\.1|localhost):8000\/api\/v1\/?$/.test(storedUrl)) {
+        return API_URLS.local;
+    }
+
+    return storedUrl || resolveDefaultApiUrl();
+}
+
 const API_BASE_URL = window.UEP_API_BASE_URL
-    || safeLocalStorageGet('uep_api_base_url')
-    || resolveDefaultApiUrl();
+    || resolveConfiguredApiUrl();
 
 const AUTH_TOKEN_KEY = 'uep_registrar_jwt';
 const AUTH_ROLE_KEY = 'uep_registrar_role';
@@ -57,6 +67,11 @@ const ADMIN_ONLY_PAGES = [
     'archiving-view.html',
     'archiving-system-integrity.html'
 ];
+
+function normalizeStoredValue(value) {
+    const normalized = (value || '').trim();
+    return ['null', 'undefined', 'false'].includes(normalized.toLowerCase()) ? '' : normalized;
+}
 
 function getCurrentPageName() {
     const pathName = window.location.pathname.split('/').pop();
@@ -100,8 +115,8 @@ function getAllowedRolesForCurrentPage() {
 }
 
 const AppState = {
-    getBearerToken: () => safeLocalStorageGet(AUTH_TOKEN_KEY),
-    getUserRole: () => safeLocalStorageGet(AUTH_ROLE_KEY),
+    getBearerToken: () => normalizeStoredValue(safeLocalStorageGet(AUTH_TOKEN_KEY)),
+    getUserRole: () => normalizeStoredValue(safeLocalStorageGet(AUTH_ROLE_KEY)),
     setAuth: (token, role) => {
         if (!safeLocalStorageSet(AUTH_TOKEN_KEY, token) || !safeLocalStorageSet(AUTH_ROLE_KEY, role)) {
             throw new Error('Browser storage is unavailable. Enable local storage to continue.');
@@ -129,7 +144,7 @@ function userCanAccessCurrentPage() {
     const token = AppState.getBearerToken();
     const role = AppState.getUserRole();
 
-    return Boolean(token) && allowedRoles.includes(role);
+    return Boolean(token) && STAFF_PORTAL_ROLES.includes(role) && allowedRoles.includes(role);
 }
 
 function enforceRouteGuard() {
@@ -148,7 +163,7 @@ function enforceRouteGuard() {
     }
 
     // If we are on a protected page but have no token
-    if (!token) {
+    if (!token || !STAFF_PORTAL_ROLES.includes(role)) {
         AppState.clearAuth();
         return false;
     }
@@ -175,7 +190,17 @@ function installAuthorizationFetchInterceptor() {
     const nativeFetch = window.fetch.bind(window);
 
     window.fetch = async (...args) => {
-        const response = await nativeFetch(...args);
+        let response;
+
+        try {
+            response = await nativeFetch(...args);
+        } catch (error) {
+            if (!isLoginPage()) {
+                AppState.clearAuth();
+            }
+
+            throw error;
+        }
 
         if ((response.status === 401 || response.status === 403) && !isLoginPage()) {
             AppState.clearAuth();
@@ -209,7 +234,7 @@ function getResponseData(payload) {
 }
 
 function handleApiError(error) {
-    if (error.status === 401 || error.status === 403) {
+    if (error.status === 401 || error.status === 403 || error instanceof TypeError) {
         AppState.clearAuth();
     }
 
