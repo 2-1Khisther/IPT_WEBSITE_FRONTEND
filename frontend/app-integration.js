@@ -6,7 +6,7 @@
 // 1. GLOBAL CONFIGURATION & STATE MANAGEMENT
 const API_URLS = {
     production: 'https://registrar-office-api.eastasia.cloudapp.azure.com/api/v1',
-    local: 'http://127.0.0.1/api/v1'
+    local: 'https://registrar-office-api.eastasia.cloudapp.azure.com/api/v1'
 };
 
 function safeLocalStorageGet(key) {
