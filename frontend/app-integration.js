@@ -35,19 +35,11 @@ function safeLocalStorageRemove(key) {
 }
 
 function resolveDefaultApiUrl() {
-    return ['127.0.0.1', 'localhost'].includes(window.location.hostname)
-        ? API_URLS.local
-        : API_URLS.production;
+    return API_URLS.production;
 }
 
 function resolveConfiguredApiUrl() {
     const storedUrl = normalizeStoredValue(safeLocalStorageGet('uep_api_base_url'));
-    const isLocalPage = ['127.0.0.1', 'localhost'].includes(window.location.hostname);
-
-    if (isLocalPage && /^http:\/\/(127\.0\.0\.1|localhost):8000\/api\/v1\/?$/.test(storedUrl)) {
-        return API_URLS.local;
-    }
-
     return storedUrl || resolveDefaultApiUrl();
 }
 
@@ -508,12 +500,12 @@ async function initSystemMonitoringDashboard() {
         };
 
         if (elements.students) elements.students.textContent = archivedStudents;
-        if (elements.admissions) elements.admissions.textContent = totalAdmissions;
+        if (elements.admissions) elements.admissions.textContent = urgentRequests;
         if (elements.profiling) elements.profiling.textContent = totalProfiles;
         if (elements.requests) elements.requests.textContent = pendingRequests;
 
         // Render dynamic heights for native CSS bar charts based on peak values
-        const peakValue = Math.max(archivedStudents, totalAdmissions, pendingRequests, 1);
+        const peakValue = Math.max(archivedStudents, totalAdmissions, pendingRequests, urgentRequests, totalProfiles, 1);
         renderYAxisLabels(peakValue);
         setNoDataLabels(hasDashboardData);
         
@@ -522,7 +514,7 @@ async function initSystemMonitoringDashboard() {
         const barPending = document.getElementById('monitor-bar-pending') || document.getElementById('dom-bar-pending');
 
         if (barClaimed) barClaimed.style.height = `${(archivedStudents / peakValue) * 100}%`;
-        if (barRelease) barRelease.style.height = `${(totalAdmissions / peakValue) * 100}%`;
+        if (barRelease) barRelease.style.height = `${(urgentRequests / peakValue) * 100}%`;
         if (barPending) barPending.style.height = `${(pendingRequests / peakValue) * 100}%`;
 
         const barAdmission = document.getElementById('dom-bar-admission');
@@ -1077,6 +1069,32 @@ async function initSystemIntegrityEngine() {
         const logData = await fetchIntegrityLogData();
         renderIntegrityLogData(logData, tableBody, template);
 
+        const runBtn = document.getElementById('action-integrity-run');
+        if (runBtn) {
+            runBtn.onclick = async () => {
+                runBtn.disabled = true;
+                const originalText = runBtn.textContent;
+                runBtn.textContent = "Scanning Vault Integrity...";
+
+                try {
+                    const response = await fetch(`${API_BASE_URL}/integrity/execute`, {
+                        method: 'POST',
+                        headers: AppState.getHeaders()
+                    });
+                    await parseApiResponse(response);
+                    alert('System integrity check completed. Bit-rot scan successful.');
+                    
+                    const newLogData = await fetchIntegrityLogData();
+                    renderIntegrityLogData(newLogData, tableBody, template);
+                } catch (err) {
+                    alert(`Integrity Check Failure: ${err.message}`);
+                } finally {
+                    runBtn.disabled = false;
+                    runBtn.textContent = originalText;
+                }
+            };
+        }
+
     } catch (err) {
         handleApiError(err);
         console.error('Error fetching integrity snapshot registries:', err);
@@ -1145,6 +1163,24 @@ function enableFormLockToggles() {
                 inputField.readOnly = true;
                 button.textContent = "🔒";
                 inputField.style.borderColor = "var(--card-border)";
+            }
+        });
+    });
+
+    document.querySelectorAll('.field-lock-toggle-select').forEach(button => {
+        button.addEventListener('click', (e) => {
+            e.preventDefault();
+            const selectField = button.parentElement.querySelector('select');
+            
+            if (selectField.disabled) {
+                selectField.disabled = false;
+                button.textContent = "🔓";
+                selectField.style.borderColor = "var(--blue-accent)";
+                selectField.focus();
+            } else {
+                selectField.disabled = true;
+                button.textContent = "🔒";
+                selectField.style.borderColor = "var(--card-border)";
             }
         });
     });
