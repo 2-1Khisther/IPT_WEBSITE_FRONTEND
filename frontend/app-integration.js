@@ -34,9 +34,15 @@ function safeLocalStorageRemove(key) {
     }
 }
 
+function resolveDefaultApiUrl() {
+    return ['127.0.0.1', 'localhost'].includes(window.location.hostname)
+        ? API_URLS.local
+        : API_URLS.production;
+}
+
 const API_BASE_URL = window.UEP_API_BASE_URL
     || safeLocalStorageGet('uep_api_base_url')
-    || API_URLS.production;
+    || resolveDefaultApiUrl();
 
 const AUTH_TOKEN_KEY = 'uep_registrar_jwt';
 const AUTH_ROLE_KEY = 'uep_registrar_role';
@@ -208,6 +214,95 @@ function handleApiError(error) {
     }
 
     console.error(error);
+}
+
+function setElementText(id, value) {
+    const element = document.getElementById(id);
+    if (element) element.textContent = value;
+}
+
+function getElementValue(id) {
+    const element = document.getElementById(id);
+    return element ? element.value : '';
+}
+
+function installTableSearch(inputId, tableBody, paginationId) {
+    const input = document.getElementById(inputId);
+    if (!input || !tableBody) return;
+
+    const applyFilter = () => {
+        const term = input.value.trim().toLowerCase();
+        const rows = Array.from(tableBody.querySelectorAll('tr'));
+        let visible = 0;
+
+        rows.forEach((row) => {
+            const haystack = (row.dataset.search || row.textContent || '').toLowerCase();
+            const isVisible = term === '' || haystack.includes(term);
+            row.hidden = !isVisible;
+            if (isVisible) visible += 1;
+        });
+
+        setElementText(paginationId, visible ? `1-${visible} of ${visible}` : '0-0 of 0');
+    };
+
+    input.addEventListener('input', applyFilter);
+    applyFilter();
+}
+
+async function openDocumentFile(documentId, preferredMode = 'preview') {
+    const previewUrl = `${API_BASE_URL}/documents/${documentId}/preview`;
+    const downloadUrl = `${API_BASE_URL}/documents/${documentId}/download`;
+    const firstUrl = preferredMode === 'download' ? downloadUrl : previewUrl;
+    const fallbackUrl = preferredMode === 'download' ? previewUrl : downloadUrl;
+
+    try {
+        let response = await fetch(firstUrl, { headers: AppState.getHeaders() });
+
+        if (!response.ok && firstUrl !== fallbackUrl) {
+            response = await fetch(fallbackUrl, { headers: AppState.getHeaders() });
+        }
+
+        if (!response.ok) {
+            const payload = await response.json().catch(() => ({}));
+            throw new Error(payload.message || 'Document file could not be opened.');
+        }
+
+        const blob = await response.blob();
+        const objectUrl = URL.createObjectURL(blob);
+        window.open(objectUrl, '_blank', 'noopener');
+        window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
+    } catch (error) {
+        alert(error.message);
+    }
+}
+
+async function deleteDocumentFile(documentId) {
+    const response = await fetch(`${API_BASE_URL}/documents/${documentId}`, {
+        method: 'DELETE',
+        headers: AppState.getHeaders()
+    });
+    return parseApiResponse(response);
+}
+
+function documentSearchText(doc) {
+    return [doc.id, doc.name, doc.type, doc.document_type, doc.file_name].filter(Boolean).join(' ');
+}
+
+function statusBadgeClass(status) {
+    if (status === 'URGENT') return 'status-urgent';
+    if (status === 'DONE') return 'status-archived';
+    return 'status-pending';
+}
+
+async function updateRequestStatus(requestId, status) {
+    const response = await fetch(`${API_BASE_URL}/requests/${requestId}/status`, {
+        method: 'PATCH',
+        headers: AppState.getHeaders(),
+        body: JSON.stringify({ status })
+    });
+
+    const payload = await parseApiResponse(response);
+    return getResponseData(payload);
 }
 
 function requireDashboardCount(stats, key) {
@@ -417,16 +512,25 @@ async function initAdmissionModule() {
 
         admissions.forEach(record => {
             const clone = template.content.cloneNode(true);
+            const row = clone.querySelector('tr');
             clone.querySelector('.col-id').textContent = record.id;
             clone.querySelector('.col-admission-no').textContent = record.admissionNo;
             clone.querySelector('.col-name').textContent = record.fullName;
             clone.querySelector('.col-year').textContent = record.yearGraduated;
             clone.querySelector('.col-date-added').textContent = record.dateCreated;
             clone.querySelector('.route-view-btn').href = `admission-view.html?id=${record.id}`;
+            row.dataset.search = [
+                record.id,
+                record.admissionNo,
+                record.fullName,
+                record.yearGraduated,
+                record.dateCreated
+            ].filter(Boolean).join(' ');
             tableBody.appendChild(clone);
         });
 
-        document.getElementById('txt-admission-pagination').textContent = `1-${admissions.length} of ${admissions.length}`;
+        setElementText('txt-admission-pagination', admissions.length ? `1-${admissions.length} of ${admissions.length}` : '0-0 of 0');
+        installTableSearch('input-admission-search', tableBody, 'txt-admission-pagination');
     } catch (err) {
         handleApiError(err);
         console.error('Failed to populate admissions table:', err);
@@ -448,14 +552,21 @@ async function initProfilingModule() {
 
         profiles.forEach(record => {
             const clone = template.content.cloneNode(true);
+            const row = clone.querySelector('tr');
             clone.querySelector('.col-student-id').textContent = record.studentId;
             clone.querySelector('.col-name').textContent = record.fullName;
             clone.querySelector('.col-date-added').textContent = record.dateCreated;
             clone.querySelector('.route-view-btn').href = `profiling-view.html?id=${record.studentId}`;
+            row.dataset.search = [
+                record.studentId,
+                record.fullName,
+                record.dateCreated
+            ].filter(Boolean).join(' ');
             tableBody.appendChild(clone);
         });
 
-        document.getElementById('txt-profiling-pagination').textContent = `1-${profiles.length} of ${profiles.length}`;
+        setElementText('txt-profiling-pagination', profiles.length ? `1-${profiles.length} of ${profiles.length}` : '0-0 of 0');
+        installTableSearch('input-profiling-search', tableBody, 'txt-profiling-pagination');
     } catch (err) {
         handleApiError(err);
         console.error('Failed to populate profiling rows:', err);
@@ -487,11 +598,66 @@ async function initAdmissionViewModule() {
         const attachmentTemplate = document.getElementById('template-attachment-item');
         attachmentContainer.innerHTML = '';
 
-        data.documents.forEach(doc => {
+        (data.documents || []).forEach(doc => {
             const clone = attachmentTemplate.content.cloneNode(true);
             clone.querySelector('.file-name').textContent = doc.name;
+            const viewButton = clone.querySelector('.action-view-img');
+            const deleteButton = clone.querySelector('.action-delete-img');
+
+            if (viewButton) {
+                viewButton.addEventListener('click', () => openDocumentFile(doc.id));
+            }
+
+            if (deleteButton) {
+                deleteButton.addEventListener('click', async (event) => {
+                    if (!confirm(`Delete ${doc.name || 'this document'}?`)) return;
+
+                    try {
+                        deleteButton.disabled = true;
+                        await deleteDocumentFile(doc.id);
+                        event.currentTarget.closest('.attachment-item')?.remove();
+                    } catch (error) {
+                        deleteButton.disabled = false;
+                        alert(error.message);
+                    }
+                });
+            }
             attachmentContainer.appendChild(clone);
         });
+
+        const form = document.getElementById('form-admission-record');
+        const submitButton = document.getElementById('btn-submit-admission-update');
+        if (form && submitButton) {
+            form.addEventListener('submit', async (event) => {
+                event.preventDefault();
+
+                try {
+                    submitButton.disabled = true;
+                    submitButton.textContent = 'Updating...';
+                    const updateResponse = await fetch(`${API_BASE_URL}/admissions/${admissionId}`, {
+                        method: 'PUT',
+                        headers: AppState.getHeaders(),
+                        body: JSON.stringify({
+                            firstName: getElementValue('field-first-name'),
+                            middleName: getElementValue('field-middle-name'),
+                            lastName: getElementValue('field-last-name'),
+                            dob: getElementValue('field-dob'),
+                            pob: getElementValue('field-pob'),
+                            address: getElementValue('field-address'),
+                            email: getElementValue('field-email'),
+                            yearGraduated: getElementValue('field-year-graduated')
+                        })
+                    });
+                    await parseApiResponse(updateResponse);
+                    alert('Admission record updated.');
+                } catch (error) {
+                    alert(error.message);
+                } finally {
+                    submitButton.disabled = false;
+                    submitButton.textContent = 'Update Record';
+                }
+            });
+        }
 
     } catch (err) {
         handleApiError(err);
@@ -519,13 +685,67 @@ async function initProfilingViewModule() {
         const template = document.getElementById('template-profile-file-row');
         tableBody.innerHTML = '';
 
-        data.documents.forEach(doc => {
+        (data.documents || []).forEach(doc => {
             const clone = template.content.cloneNode(true);
+            const row = clone.querySelector('tr');
             clone.querySelector('.file-id').textContent = doc.id;
             clone.querySelector('.file-name').textContent = doc.name;
             clone.querySelector('.file-type').textContent = doc.type;
+            row.dataset.search = documentSearchText(doc);
+
+            const viewButton = clone.querySelector('.action-view-file');
+            const deleteButton = clone.querySelector('.action-delete-file');
+
+            if (viewButton) {
+                viewButton.addEventListener('click', () => openDocumentFile(doc.id));
+            }
+
+            if (deleteButton) {
+                deleteButton.addEventListener('click', async (event) => {
+                    if (!confirm(`Delete ${doc.name || 'this document'}?`)) return;
+
+                    try {
+                        deleteButton.disabled = true;
+                        await deleteDocumentFile(doc.id);
+                        event.currentTarget.closest('tr')?.remove();
+                    } catch (error) {
+                        deleteButton.disabled = false;
+                        alert(error.message);
+                    }
+                });
+            }
             tableBody.appendChild(clone);
         });
+
+        const form = document.getElementById('form-profiling-record');
+        const submitButton = form?.querySelector('.btn-update');
+        if (form && submitButton) {
+            form.addEventListener('submit', async (event) => {
+                event.preventDefault();
+
+                try {
+                    submitButton.disabled = true;
+                    submitButton.textContent = 'Updating...';
+                    const updateResponse = await fetch(`${API_BASE_URL}/profiles/${studentId}`, {
+                        method: 'PUT',
+                        headers: AppState.getHeaders(),
+                        body: JSON.stringify({
+                            studentId: getElementValue('field-prof-id'),
+                            firstName: getElementValue('field-prof-firstname'),
+                            middleName: getElementValue('field-prof-middlename'),
+                            lastName: getElementValue('field-prof-lastname')
+                        })
+                    });
+                    await parseApiResponse(updateResponse);
+                    alert('Profile updated.');
+                } catch (error) {
+                    alert(error.message);
+                } finally {
+                    submitButton.disabled = false;
+                    submitButton.textContent = 'Update Profile';
+                }
+            });
+        }
 
     } catch (err) {
         handleApiError(err);
@@ -548,25 +768,60 @@ async function initRequestModule() {
 
         requests.forEach(record => {
             const clone = template.content.cloneNode(true);
+            const row = clone.querySelector('tr');
             clone.querySelector('.col-student-id').textContent = record.studentId;
             clone.querySelector('.col-name').textContent = record.fullName;
             clone.querySelector('.col-date').textContent = record.dateRequested;
             
             const statusTd = clone.querySelector('.col-status');
-            let statusClass = 'status-pending';
-            if (record.status === 'URGENT') statusClass = 'status-urgent';
-            else if (record.status === 'DONE') statusClass = 'status-archived';
-            
-            statusTd.innerHTML = `<span class="status-badge ${statusClass}">${record.status}</span>`;
+            statusTd.innerHTML = `<span class="status-badge ${statusBadgeClass(record.status)}">${record.status}</span>`;
+            row.dataset.search = [
+                record.request_id,
+                record.studentId,
+                record.fullName,
+                record.dateRequested,
+                record.status,
+                record.request_type
+            ].filter(Boolean).join(' ');
             
             clone.querySelector('.route-view-btn').addEventListener('click', () => {
                 window.location.href = `request-view.html?id=${record.studentId}`;
             });
 
+            const editStatusButton = clone.querySelector('.route-edit-status');
+            if (editStatusButton) {
+                editStatusButton.addEventListener('click', async () => {
+                    if (!record.request_id) {
+                        alert('This legacy document row has no editable request record yet.');
+                        return;
+                    }
+
+                    const nextStatus = (prompt('Set status to PENDING, URGENT, or DONE:', record.status) || '').trim().toUpperCase();
+                    if (!nextStatus || nextStatus === record.status) return;
+                    if (!['PENDING', 'URGENT', 'DONE'].includes(nextStatus)) {
+                        alert('Status must be PENDING, URGENT, or DONE.');
+                        return;
+                    }
+
+                    try {
+                        editStatusButton.disabled = true;
+                        const updated = await updateRequestStatus(record.request_id, nextStatus);
+                        record.status = updated.status;
+                        statusTd.innerHTML = `<span class="status-badge ${statusBadgeClass(updated.status)}">${updated.status}</span>`;
+                        row.dataset.search = `${row.dataset.search} ${updated.status}`;
+                    } catch (error) {
+                        alert(error.message);
+                    } finally {
+                        editStatusButton.disabled = false;
+                    }
+                });
+            }
+
             tableBody.appendChild(clone);
         });
 
-        document.getElementById('txt-request-pagination').textContent = `1-${requests.length} of ${requests.length}`;
+        setElementText('txt-request-pagination', requests.length ? `1-${requests.length} of ${requests.length}` : '0-0 of 0');
+        installTableSearch('input-request-search', tableBody, 'txt-request-pagination');
     } catch (err) {
         handleApiError(err);
         console.error('Failed to populate request table:', err);

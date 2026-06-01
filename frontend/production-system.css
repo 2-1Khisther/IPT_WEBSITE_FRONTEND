@@ -597,6 +597,18 @@ body {
   color: var(--red);
 }
 
+.status-badge.status-pending {
+  color: var(--yellow);
+}
+
+.status-badge.status-urgent {
+  color: var(--red);
+}
+
+.status-badge.status-archived {
+  color: var(--green);
+}
+
 .audit-card {
   background-color: var(--card-bg);
   border: 1px solid var(--card-border);
