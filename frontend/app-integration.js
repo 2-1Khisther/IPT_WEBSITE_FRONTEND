@@ -932,13 +932,9 @@ async function initArchivingRegistry() {
         const response = await fetch(`${API_BASE_URL}/archive/registry`, { headers: AppState.getHeaders() });
         const payload = await parseApiResponse(response);
         const data = getResponseData(payload);
-        let students = data.students || [];
+        const students = data.students || [];
         const hardware = data.hardware || {};
         const isUniversityRegistry = Boolean(document.getElementById('target-registry-rows'));
-
-        if (!isUniversityRegistry) {
-            students = students.filter(student => student.statusText === 'ARCHIVED' || student.statusText === 'ELIGIBLE');
-        }
 
         tableBody.innerHTML = '';
 
@@ -953,7 +949,7 @@ async function initArchivingRegistry() {
 
             const enrollmentStatusCell = clone.querySelector('.col-enrollment-status');
             if (enrollmentStatusCell) {
-                enrollmentStatusCell.innerHTML = `<span class="status-badge ${student.statusClass || 'status-pending'}">${student.statusText || 'ACTIVE'}</span>`;
+                enrollmentStatusCell.innerHTML = `<span class="status-badge ${student.statusClass || 'status-pending'}">${student.enrollmentStatus || student.statusText || 'ACTIVE'}</span>`;
             }
 
             const statusTd = clone.querySelector('.col-status');
