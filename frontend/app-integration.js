@@ -79,12 +79,23 @@ function getCurrentPageName() {
 }
 
 function isLoginPage() {
-    return getCurrentPageName() === 'login_page.html';
+    const pageName = getCurrentPageName();
+    return pageName === 'login_page.html' || pageName === 'login.html';
+}
+
+function getLoginPageName() {
+    const pageName = getCurrentPageName();
+
+    if (pageName === 'login.html') {
+        return 'login.html';
+    }
+
+    return 'login_page.html';
 }
 
 function redirectToLogin() {
     if (!isLoginPage()) {
-        window.location.replace('login_page.html');
+        window.location.replace(new URL(getLoginPageName(), window.location.href).href);
     }
 }
 
@@ -104,6 +115,10 @@ function getAllowedRolesForCurrentPage() {
     const pageName = getCurrentPageName();
 
     if (pageName === 'login_page.html') {
+        return null;
+    }
+
+    if (pageName === 'login.html') {
         return null;
     }
 
@@ -381,7 +396,7 @@ document.addEventListener('DOMContentLoaded', () => {
     syncSidebarActions();
 
     // Initialize module controllers depending on which page the browser is viewing
-    if (currentPage === 'login_page.html') {
+    if (currentPage === 'login_page.html' || currentPage === 'login.html') {
         initLoginController();
     } else if (currentPage === 'monitoring.html' || currentPage === 'dashboard.html') {
         initSystemMonitoringDashboard();
