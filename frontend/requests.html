@@ -36,7 +36,10 @@
           <span>Requests</span>
         </a>
       </nav>
-      <a href="selection.html" class="logout">↩ Change Module</a>
+      <div class="sidebar-actions">
+        <a href="selection.html" class="sidebar-action" data-admin-only="true" hidden>Change Module</a>
+        <a href="#" class="sidebar-action" data-action="logout">Log out</a>
+      </div>
     </aside>
 
     <main class="main">
@@ -89,5 +92,6 @@
     </tr>
   </template>
 
+  <script src="app-integration.js" defer></script>
 </body>
 </html>

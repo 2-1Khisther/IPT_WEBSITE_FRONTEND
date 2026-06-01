@@ -4,14 +4,143 @@
  */
 
 // 1. GLOBAL CONFIGURATION & STATE MANAGEMENT
-const API_BASE_URL = window.location.origin + '/api/v1'; 
+const API_URLS = {
+    production: 'https://registrar-office-api.eastasia.cloudapp.azure.com/api/v1',
+    local: 'https://registrar-office-api.eastasia.cloudapp.azure.com/api/v1'
+};
+
+function safeLocalStorageGet(key) {
+    try {
+        return window.localStorage.getItem(key);
+    } catch (error) {
+        return null;
+    }
+}
+
+function safeLocalStorageSet(key, value) {
+    try {
+        window.localStorage.setItem(key, value);
+        return true;
+    } catch (error) {
+        return false;
+    }
+}
+
+function safeLocalStorageRemove(key) {
+    try {
+        window.localStorage.removeItem(key);
+    } catch (error) {
+        // Storage may be unavailable in private or locked-down browser contexts.
+    }
+}
+
+function resolveDefaultApiUrl() {
+    return ['127.0.0.1', 'localhost'].includes(window.location.hostname)
+        ? API_URLS.local
+        : API_URLS.production;
+}
+
+function resolveConfiguredApiUrl() {
+    const storedUrl = normalizeStoredValue(safeLocalStorageGet('uep_api_base_url'));
+    const isLocalPage = ['127.0.0.1', 'localhost'].includes(window.location.hostname);
+
+    if (isLocalPage && /^http:\/\/(127\.0\.0\.1|localhost):8000\/api\/v1\/?$/.test(storedUrl)) {
+        return API_URLS.local;
+    }
+
+    return storedUrl || resolveDefaultApiUrl();
+}
+
+const API_BASE_URL = window.UEP_API_BASE_URL
+    || resolveConfiguredApiUrl();
+
+const AUTH_TOKEN_KEY = 'uep_registrar_jwt';
+const AUTH_ROLE_KEY = 'uep_registrar_role';
+const STAFF_PORTAL_ROLES = ['staff', 'admin'];
+const STAFF_DEFAULT_PAGE = 'dashboard.html';
+const ADMIN_DEFAULT_PAGE = 'selection.html';
+const ADMIN_ONLY_PAGES = [
+    'selection.html',
+    'archiving-dashboard.html',
+    'archiving.html',
+    'archiving-university-registry.html',
+    'archiving-view.html',
+    'archiving-system-integrity.html'
+];
+
+function normalizeStoredValue(value) {
+    const normalized = (value || '').trim();
+    return ['null', 'undefined', 'false'].includes(normalized.toLowerCase()) ? '' : normalized;
+}
+
+function getCurrentPageName() {
+    const pathName = window.location.pathname.split('/').pop();
+    return pathName || 'login_page.html';
+}
+
+function isLoginPage() {
+    const pageName = getCurrentPageName();
+    return pageName === 'login_page.html' || pageName === 'login.html';
+}
+
+function getLoginPageName() {
+    const pageName = getCurrentPageName();
+
+    if (pageName === 'login.html') {
+        return 'login.html';
+    }
+
+    return 'login_page.html';
+}
+
+function redirectToLogin() {
+    if (!isLoginPage()) {
+        window.location.replace(new URL(getLoginPageName(), window.location.href).href);
+    }
+}
+
+function getLandingPageForRole(role) {
+    if (role === 'admin') {
+        return ADMIN_DEFAULT_PAGE;
+    }
+
+    if (role === 'staff') {
+        return STAFF_DEFAULT_PAGE;
+    }
+
+    return 'login_page.html';
+}
+
+function getAllowedRolesForCurrentPage() {
+    const pageName = getCurrentPageName();
+
+    if (pageName === 'login_page.html') {
+        return null;
+    }
+
+    if (pageName === 'login.html') {
+        return null;
+    }
+
+    if (ADMIN_ONLY_PAGES.includes(pageName)) {
+        return ['admin'];
+    }
+
+    return STAFF_PORTAL_ROLES;
+}
 
 const AppState = {
-    getBearerToken: () => localStorage.getItem('uep_registrar_jwt'),
-    setBearerToken: (token) => localStorage.setItem('uep_registrar_jwt', token),
+    getBearerToken: () => normalizeStoredValue(safeLocalStorageGet(AUTH_TOKEN_KEY)),
+    getUserRole: () => normalizeStoredValue(safeLocalStorageGet(AUTH_ROLE_KEY)),
+    setAuth: (token, role) => {
+        if (!safeLocalStorageSet(AUTH_TOKEN_KEY, token) || !safeLocalStorageSet(AUTH_ROLE_KEY, role)) {
+            throw new Error('Browser storage is unavailable. Enable local storage to continue.');
+        }
+    },
     clearAuth: () => {
-        localStorage.removeItem('uep_registrar_jwt');
-        window.location.href = 'login_page.html';
+        safeLocalStorageRemove(AUTH_TOKEN_KEY);
+        safeLocalStorageRemove(AUTH_ROLE_KEY);
+        redirectToLogin();
     },
     // Safely handles network headers with Authorization Interceptors
     getHeaders: () => ({
@@ -20,43 +149,287 @@ const AppState = {
     })
 };
 
+function userCanAccessCurrentPage() {
+    const allowedRoles = getAllowedRolesForCurrentPage();
+
+    if (!allowedRoles) {
+        return true;
+    }
+
+    const token = AppState.getBearerToken();
+    const role = AppState.getUserRole();
+
+    return Boolean(token) && STAFF_PORTAL_ROLES.includes(role) && allowedRoles.includes(role);
+}
+
+function enforceRouteGuard() {
+    const token = AppState.getBearerToken();
+    const role = AppState.getUserRole();
+    const allowedRoles = getAllowedRolesForCurrentPage();
+
+    // If we are on the login page (allowedRoles is null)
+    if (!allowedRoles) {
+        // If user is already authenticated with a valid role, skip login
+        if (token && role && STAFF_PORTAL_ROLES.includes(role)) {
+            window.location.replace(getLandingPageForRole(role));
+            return false;
+        }
+        return true;
+    }
+
+    // If we are on a protected page but have no token
+    if (!token || !STAFF_PORTAL_ROLES.includes(role)) {
+        AppState.clearAuth();
+        return false;
+    }
+
+    // If we have a token but the role is not allowed for this page
+    if (!allowedRoles.includes(role)) {
+        alert('Access Denied: You do not have the required permissions to access this module.');
+        window.location.replace(getLandingPageForRole(role));
+        return false;
+    }
+
+    return true;
+}
+
+function syncSidebarActions() {
+    const role = AppState.getUserRole();
+
+    document.querySelectorAll('[data-admin-only="true"]').forEach((element) => {
+        element.hidden = role !== 'admin';
+    });
+}
+
+function installAuthorizationFetchInterceptor() {
+    const nativeFetch = window.fetch.bind(window);
+
+    window.fetch = async (...args) => {
+        let response;
+
+        try {
+            response = await nativeFetch(...args);
+        } catch (error) {
+            if (!isLoginPage()) {
+                AppState.clearAuth();
+            }
+
+            throw error;
+        }
+
+        if ((response.status === 401 || response.status === 403) && !isLoginPage()) {
+            AppState.clearAuth();
+        }
+
+        return response;
+    };
+}
+
+installAuthorizationFetchInterceptor();
+
+async function parseApiResponse(response) {
+    const payload = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+        const error = new Error(payload.message || 'Request failed.');
+        error.status = response.status;
+        error.payload = payload;
+        throw error;
+    }
+
+    return payload;
+}
+
+function getResponseData(payload) {
+    if (payload && Object.prototype.hasOwnProperty.call(payload, 'data')) {
+        return payload.data || {};
+    }
+
+    return payload || {};
+}
+
+function handleApiError(error) {
+    if (error.status === 401 || error.status === 403 || error instanceof TypeError) {
+        AppState.clearAuth();
+    }
+
+    console.error(error);
+}
+
+function setElementText(id, value) {
+    const element = document.getElementById(id);
+    if (element) element.textContent = value;
+}
+
+function getElementValue(id) {
+    const element = document.getElementById(id);
+    return element ? element.value : '';
+}
+
+function installTableSearch(inputId, tableBody, paginationId) {
+    const input = document.getElementById(inputId);
+    if (!input || !tableBody) return;
+
+    const applyFilter = () => {
+        const term = input.value.trim().toLowerCase();
+        const rows = Array.from(tableBody.querySelectorAll('tr'));
+        let visible = 0;
+
+        rows.forEach((row) => {
+            const haystack = (row.dataset.search || row.textContent || '').toLowerCase();
+            const isVisible = term === '' || haystack.includes(term);
+            row.hidden = !isVisible;
+            if (isVisible) visible += 1;
+        });
+
+        setElementText(paginationId, visible ? `1-${visible} of ${visible}` : '0-0 of 0');
+    };
+
+    input.addEventListener('input', applyFilter);
+    applyFilter();
+}
+
+async function openDocumentFile(documentId, preferredMode = 'preview') {
+    const previewUrl = `${API_BASE_URL}/documents/${documentId}/preview`;
+    const downloadUrl = `${API_BASE_URL}/documents/${documentId}/download`;
+    const firstUrl = preferredMode === 'download' ? downloadUrl : previewUrl;
+    const fallbackUrl = preferredMode === 'download' ? previewUrl : downloadUrl;
+
+    try {
+        let response = await fetch(firstUrl, { headers: AppState.getHeaders() });
+
+        if (!response.ok && firstUrl !== fallbackUrl) {
+            response = await fetch(fallbackUrl, { headers: AppState.getHeaders() });
+        }
+
+        if (!response.ok) {
+            const payload = await response.json().catch(() => ({}));
+            throw new Error(payload.message || 'Document file could not be opened.');
+        }
+
+        const blob = await response.blob();
+        const objectUrl = URL.createObjectURL(blob);
+        window.open(objectUrl, '_blank', 'noopener');
+        window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
+    } catch (error) {
+        alert(error.message);
+    }
+}
+
+async function deleteDocumentFile(documentId) {
+    const response = await fetch(`${API_BASE_URL}/documents/${documentId}`, {
+        method: 'DELETE',
+        headers: AppState.getHeaders()
+    });
+    return parseApiResponse(response);
+}
+
+function documentSearchText(doc) {
+    return [doc.id, doc.name, doc.type, doc.document_type, doc.file_name].filter(Boolean).join(' ');
+}
+
+function statusBadgeClass(status) {
+    if (status === 'URGENT') return 'status-urgent';
+    if (status === 'DONE') return 'status-archived';
+    return 'status-pending';
+}
+
+async function updateRequestStatus(requestId, status) {
+    const response = await fetch(`${API_BASE_URL}/requests/${requestId}/status`, {
+        method: 'PATCH',
+        headers: AppState.getHeaders(),
+        body: JSON.stringify({ status })
+    });
+
+    const payload = await parseApiResponse(response);
+    return getResponseData(payload);
+}
+
+function requireDashboardCount(stats, key) {
+    if (!Object.prototype.hasOwnProperty.call(stats, key)) {
+        throw new Error(`Dashboard response missing ${key}.`);
+    }
+
+    const count = Number(stats[key]);
+
+    if (!Number.isInteger(count) || count < 0) {
+        throw new Error(`Dashboard response has invalid ${key}.`);
+    }
+
+    return count;
+}
+
+function renderYAxisLabels(peakValue) {
+    const max = Math.max(5, Math.ceil(peakValue));
+
+    document.querySelectorAll('.chart-card .y-axis').forEach((axis) => {
+        const labels = axis.querySelectorAll('span');
+        labels.forEach((label, index) => {
+            if (index === labels.length - 1) {
+                label.textContent = '0';
+                return;
+            }
+
+            label.textContent = Math.ceil(max * ((labels.length - 1 - index) / (labels.length - 1)));
+        });
+    });
+}
+
+function setNoDataLabels(hasData) {
+    ['msg-chart-requests-nodata', 'msg-chart-modules-nodata'].forEach((id) => {
+        const label = document.getElementById(id);
+        if (label) {
+            label.style.display = hasData ? 'none' : 'block';
+        }
+    });
+}
+
 // 2. ROUTER & ROUTE ENGINE INITIALIZATION
 document.addEventListener('DOMContentLoaded', () => {
-    const currentPath = window.location.pathname;
+    const currentPage = getCurrentPageName();
 
-    // Route guards: Force users back to login if token is missing (except on login itself)
-    if (!AppState.getBearerToken() && !currentPath.includes('login_page.html')) {
-        AppState.clearAuth();
+    // Route guards: Force unauthenticated or unauthorized users back to login.
+    if (!enforceRouteGuard()) {
         return;
     }
 
+    syncSidebarActions();
+
     // Initialize module controllers depending on which page the browser is viewing
-    if (currentPath.includes('login_page.html')) {
+    if (currentPage === 'login_page.html' || currentPage === 'login.html') {
         initLoginController();
-    } else if (currentPath.includes('monitoring.html') || currentPath.includes('dashboard.html')) {
+    } else if (currentPage === 'monitoring.html' || currentPage === 'dashboard.html') {
         initSystemMonitoringDashboard();
-    } else if (currentPath.includes('admission.html')) {
+    } else if (currentPage === 'admission.html') {
         initAdmissionModule();
-    } else if (currentPath.includes('profiling.html')) {
+    } else if (currentPage === 'profiling.html') {
         initProfilingModule();
-    } else if (currentPath.includes('archiving-dashboard.html')) {
+    } else if (currentPage === 'admission-view.html') {
+        initAdmissionViewModule();
+    } else if (currentPage === 'profiling-view.html') {
+        initProfilingViewModule();
+    } else if (currentPage === 'requests.html') {
+        initRequestModule();
+    } else if (currentPage === 'request-view.html') {
+        initRequestViewModule();
+    } else if (currentPage === 'archiving-dashboard.html') {
         initArchivingDashboard();
-    } else if (currentPath.includes('archiving.html')) {
+    } else if (currentPage === 'archiving.html' || currentPage === 'archiving-university-registry.html') {
         initArchivingRegistry();
-    } else if (currentPath.includes('archiving-view.html')) {
+    } else if (currentPage === 'archiving-view.html') {
         initArchivingViewDrilldown();
-    } else if (currentPath.includes('system-integrity.html')) {
+    } else if (currentPage === 'archiving-system-integrity.html') {
         initSystemIntegrityEngine();
     }
 
     // Attach global logout hooks across all active viewports
-    const logoutBtn = document.querySelector('.logout, #action-logout-trigger');
-    if (logoutBtn) {
+    const logoutButtons = document.querySelectorAll('[data-action="logout"], #action-logout-trigger');
+    logoutButtons.forEach((logoutBtn) => {
         logoutBtn.addEventListener('click', (e) => {
             e.preventDefault();
             AppState.clearAuth();
         });
-    }
+    });
 });
 
 /* ─────────────────────────────────────────────────────────────────────────
@@ -80,20 +453,30 @@ function initLoginController() {
             submitBtn.textContent = "Authenticating...";
             submitBtn.disabled = true;
 
-            const response = await fetch(`${API_BASE_URL}/auth/login`, {
+            const response = await fetch(`${API_BASE_URL}/staff/login`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username: usernameInput, password: passwordInput })
+                body: JSON.stringify({ staff_id: usernameInput, password: passwordInput })
             });
 
-            if (!response.ok) throw new Error('Invalid credentials or unauthorized personnel.');
+            const payload = await parseApiResponse(response);
+            const token = payload.data && payload.data.access_token;
+            const role = payload.data && payload.data.role;
 
-            const data = await response.json();
-            AppState.setBearerToken(data.token); // Secure token storage mapping
+            if (!token) {
+                throw new Error('Login response did not include an access token.');
+            }
+
+            if (!STAFF_PORTAL_ROLES.includes(role)) {
+                throw new Error('This account is not authorized to access the registrar admin portal.');
+            }
+
+            AppState.setAuth(token, role); // Secure token storage mapping
             
-            // Send the authorized user to the System/Archiving selection page
-            window.location.href = 'selection.html';
+            // Send admins to subsystem selection and staff directly to their only module.
+            window.location.href = getLandingPageForRole(role);
         } catch (err) {
+            AppState.clearAuth();
             alert(`Authentication Error: ${err.message}`);
             submitBtn.textContent = "Login";
             submitBtn.disabled = false;
@@ -104,11 +487,17 @@ function initLoginController() {
 // B. SYSTEM MONITORING SUITE (monitoring.html / dashboard.html)
 async function initSystemMonitoringDashboard() {
     try {
-        const response = await fetch(`${API_BASE_URL}/monitoring/summary`, {
+        const response = await fetch(`${API_BASE_URL}/dashboard/stats`, {
             headers: AppState.getHeaders()
         });
-        if (!response.ok) throw new Error('Failed to retrieve system monitoring telemetry.');
-        const data = await response.json();
+        const payload = await parseApiResponse(response);
+        const stats = payload.data || {};
+        const pendingRequests = requireDashboardCount(stats, 'pending_requests');
+        const urgentRequests = requireDashboardCount(stats, 'urgent_requests');
+        const archivedStudents = requireDashboardCount(stats, 'archived_students');
+        const totalAdmissions = requireDashboardCount(stats, 'total_admissions');
+        const totalProfiles = requireDashboardCount(stats, 'total_profiles');
+        const hasDashboardData = (pendingRequests + urgentRequests + archivedStudents) > 0;
 
         // Target and map dynamic card stats
         const elements = {
@@ -118,24 +507,33 @@ async function initSystemMonitoringDashboard() {
             requests: document.getElementById('monitor-metric-requests') || document.getElementById('core-metric-requests')
         };
 
-        if (elements.students) elements.students.textContent = data.totalStudents;
-        if (elements.admissions) elements.admissions.textContent = data.totalAdmissions;
-        if (elements.profiling) elements.profiling.textContent = data.totalProfiling;
-        if (elements.requests) elements.requests.textContent = data.totalRequests;
+        if (elements.students) elements.students.textContent = archivedStudents;
+        if (elements.admissions) elements.admissions.textContent = totalAdmissions;
+        if (elements.profiling) elements.profiling.textContent = totalProfiles;
+        if (elements.requests) elements.requests.textContent = pendingRequests;
 
         // Render dynamic heights for native CSS bar charts based on peak values
-        const peakValue = Math.max(data.requestsClaimed, data.requestsRelease, data.requestsPending, 1);
+        const peakValue = Math.max(archivedStudents, totalAdmissions, pendingRequests, 1);
+        renderYAxisLabels(peakValue);
+        setNoDataLabels(hasDashboardData);
         
         const barClaimed = document.getElementById('monitor-bar-claimed') || document.getElementById('dom-bar-claimed');
         const barRelease = document.getElementById('monitor-bar-release') || document.getElementById('dom-bar-release');
         const barPending = document.getElementById('monitor-bar-pending') || document.getElementById('dom-bar-pending');
 
-        if (barClaimed) barClaimed.style.height = `${(data.requestsClaimed / peakValue) * 100}%`;
-        if (barRelease) barRelease.style.height = `${(data.requestsRelease / peakValue) * 100}%`;
-        if (barPending) barPending.style.height = `${(data.requestsPending / peakValue) * 100}%`;
+        if (barClaimed) barClaimed.style.height = `${(archivedStudents / peakValue) * 100}%`;
+        if (barRelease) barRelease.style.height = `${(totalAdmissions / peakValue) * 100}%`;
+        if (barPending) barPending.style.height = `${(pendingRequests / peakValue) * 100}%`;
+
+        const barAdmission = document.getElementById('dom-bar-admission');
+        const barProfiling = document.getElementById('dom-bar-profiling');
+        const barRequests = document.getElementById('dom-bar-requests');
+        if (barAdmission) barAdmission.style.height = `${(totalAdmissions / peakValue) * 100}%`;
+        if (barProfiling) barProfiling.style.height = `${(totalProfiles / peakValue) * 100}%`;
+        if (barRequests) barRequests.style.height = `${(pendingRequests / peakValue) * 100}%`;
 
     } catch (err) {
-        console.error(err);
+        handleApiError(err);
     }
 }
 
@@ -147,23 +545,34 @@ async function initAdmissionModule() {
 
     try {
         const response = await fetch(`${API_BASE_URL}/admissions`, { headers: AppState.getHeaders() });
-        const admissions = await response.json();
+        const payload = await parseApiResponse(response);
+        const admissions = payload.data || [];
 
         tableBody.innerHTML = ''; // Wipe loading placeholder
 
         admissions.forEach(record => {
             const clone = template.content.cloneNode(true);
+            const row = clone.querySelector('tr');
             clone.querySelector('.col-id').textContent = record.id;
             clone.querySelector('.col-admission-no').textContent = record.admissionNo;
             clone.querySelector('.col-name').textContent = record.fullName;
             clone.querySelector('.col-year').textContent = record.yearGraduated;
             clone.querySelector('.col-date-added').textContent = record.dateCreated;
             clone.querySelector('.route-view-btn').href = `admission-view.html?id=${record.id}`;
+            row.dataset.search = [
+                record.id,
+                record.admissionNo,
+                record.fullName,
+                record.yearGraduated,
+                record.dateCreated
+            ].filter(Boolean).join(' ');
             tableBody.appendChild(clone);
         });
 
-        document.getElementById('txt-admission-pagination').textContent = `1-${admissions.length} of ${admissions.length}`;
+        setElementText('txt-admission-pagination', admissions.length ? `1-${admissions.length} of ${admissions.length}` : '0-0 of 0');
+        installTableSearch('input-admission-search', tableBody, 'txt-admission-pagination');
     } catch (err) {
+        handleApiError(err);
         console.error('Failed to populate admissions table:', err);
     }
 }
@@ -176,22 +585,320 @@ async function initProfilingModule() {
 
     try {
         const response = await fetch(`${API_BASE_URL}/profiles`, { headers: AppState.getHeaders() });
-        const profiles = await response.json();
+        const payload = await parseApiResponse(response);
+        const profiles = payload.data || [];
 
         tableBody.innerHTML = '';
 
         profiles.forEach(record => {
             const clone = template.content.cloneNode(true);
+            const row = clone.querySelector('tr');
             clone.querySelector('.col-student-id').textContent = record.studentId;
             clone.querySelector('.col-name').textContent = record.fullName;
             clone.querySelector('.col-date-added').textContent = record.dateCreated;
             clone.querySelector('.route-view-btn').href = `profiling-view.html?id=${record.studentId}`;
+            row.dataset.search = [
+                record.studentId,
+                record.fullName,
+                record.dateCreated
+            ].filter(Boolean).join(' ');
             tableBody.appendChild(clone);
         });
 
-        document.getElementById('txt-profiling-pagination').textContent = `1-${profiles.length} of ${profiles.length}`;
+        setElementText('txt-profiling-pagination', profiles.length ? `1-${profiles.length} of ${profiles.length}` : '0-0 of 0');
+        installTableSearch('input-profiling-search', tableBody, 'txt-profiling-pagination');
     } catch (err) {
+        handleApiError(err);
         console.error('Failed to populate profiling rows:', err);
+    }
+}
+
+// D2. ADMISSION DETAIL VIEW (admission-view.html)
+async function initAdmissionViewModule() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const admissionId = urlParams.get('id');
+    if (!admissionId) return;
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/admissions/${admissionId}`, { headers: AppState.getHeaders() });
+        const payload = await parseApiResponse(response);
+        const data = payload.data;
+
+        document.getElementById('field-admission-no').value = data.admissionNo;
+        document.getElementById('field-first-name').value = data.firstName;
+        document.getElementById('field-middle-name').value = data.middleName;
+        document.getElementById('field-last-name').value = data.lastName;
+        document.getElementById('field-dob').value = data.dob;
+        document.getElementById('field-pob').value = data.pob;
+        document.getElementById('field-address').value = data.address;
+        document.getElementById('field-email').value = data.email;
+        document.getElementById('field-year-graduated').value = data.yearGraduated;
+
+        const attachmentContainer = document.getElementById('container-admission-attachments');
+        const attachmentTemplate = document.getElementById('template-attachment-item');
+        attachmentContainer.innerHTML = '';
+
+        (data.documents || []).forEach(doc => {
+            const clone = attachmentTemplate.content.cloneNode(true);
+            clone.querySelector('.file-name').textContent = doc.name;
+            const viewButton = clone.querySelector('.action-view-img');
+            const deleteButton = clone.querySelector('.action-delete-img');
+
+            if (viewButton) {
+                viewButton.addEventListener('click', () => openDocumentFile(doc.id));
+            }
+
+            if (deleteButton) {
+                deleteButton.addEventListener('click', async (event) => {
+                    if (!confirm(`Delete ${doc.name || 'this document'}?`)) return;
+
+                    try {
+                        deleteButton.disabled = true;
+                        await deleteDocumentFile(doc.id);
+                        event.currentTarget.closest('.attachment-item')?.remove();
+                    } catch (error) {
+                        deleteButton.disabled = false;
+                        alert(error.message);
+                    }
+                });
+            }
+            attachmentContainer.appendChild(clone);
+        });
+
+        const form = document.getElementById('form-admission-record');
+        const submitButton = document.getElementById('btn-submit-admission-update');
+        if (form && submitButton) {
+            form.addEventListener('submit', async (event) => {
+                event.preventDefault();
+
+                try {
+                    submitButton.disabled = true;
+                    submitButton.textContent = 'Updating...';
+                    const updateResponse = await fetch(`${API_BASE_URL}/admissions/${admissionId}`, {
+                        method: 'PUT',
+                        headers: AppState.getHeaders(),
+                        body: JSON.stringify({
+                            firstName: getElementValue('field-first-name'),
+                            middleName: getElementValue('field-middle-name'),
+                            lastName: getElementValue('field-last-name'),
+                            dob: getElementValue('field-dob'),
+                            pob: getElementValue('field-pob'),
+                            address: getElementValue('field-address'),
+                            email: getElementValue('field-email'),
+                            yearGraduated: getElementValue('field-year-graduated')
+                        })
+                    });
+                    await parseApiResponse(updateResponse);
+                    alert('Admission record updated.');
+                } catch (error) {
+                    alert(error.message);
+                } finally {
+                    submitButton.disabled = false;
+                    submitButton.textContent = 'Update Record';
+                }
+            });
+        }
+
+    } catch (err) {
+        handleApiError(err);
+        console.error('Failed to load admission detail:', err);
+    }
+}
+
+// D3. PROFILING DETAIL VIEW (profiling-view.html)
+async function initProfilingViewModule() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const studentId = urlParams.get('id');
+    if (!studentId) return;
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/profiles/${studentId}`, { headers: AppState.getHeaders() });
+        const payload = await parseApiResponse(response);
+        const data = payload.data;
+
+        document.getElementById('field-prof-id').value = data.studentId;
+        document.getElementById('field-prof-firstname').value = data.firstName;
+        document.getElementById('field-prof-middlename').value = data.middleName;
+        document.getElementById('field-prof-lastname').value = data.lastName;
+
+        const tableBody = document.getElementById('target-profile-attachments');
+        const template = document.getElementById('template-profile-file-row');
+        tableBody.innerHTML = '';
+
+        (data.documents || []).forEach(doc => {
+            const clone = template.content.cloneNode(true);
+            const row = clone.querySelector('tr');
+            clone.querySelector('.file-id').textContent = doc.id;
+            clone.querySelector('.file-name').textContent = doc.name;
+            clone.querySelector('.file-type').textContent = doc.type;
+            row.dataset.search = documentSearchText(doc);
+
+            const viewButton = clone.querySelector('.action-view-file');
+            const deleteButton = clone.querySelector('.action-delete-file');
+
+            if (viewButton) {
+                viewButton.addEventListener('click', () => openDocumentFile(doc.id));
+            }
+
+            if (deleteButton) {
+                deleteButton.addEventListener('click', async (event) => {
+                    if (!confirm(`Delete ${doc.name || 'this document'}?`)) return;
+
+                    try {
+                        deleteButton.disabled = true;
+                        await deleteDocumentFile(doc.id);
+                        event.currentTarget.closest('tr')?.remove();
+                    } catch (error) {
+                        deleteButton.disabled = false;
+                        alert(error.message);
+                    }
+                });
+            }
+            tableBody.appendChild(clone);
+        });
+
+        const form = document.getElementById('form-profiling-record');
+        const submitButton = form?.querySelector('.btn-update');
+        if (form && submitButton) {
+            form.addEventListener('submit', async (event) => {
+                event.preventDefault();
+
+                try {
+                    submitButton.disabled = true;
+                    submitButton.textContent = 'Updating...';
+                    const updateResponse = await fetch(`${API_BASE_URL}/profiles/${studentId}`, {
+                        method: 'PUT',
+                        headers: AppState.getHeaders(),
+                        body: JSON.stringify({
+                            studentId: getElementValue('field-prof-id'),
+                            firstName: getElementValue('field-prof-firstname'),
+                            middleName: getElementValue('field-prof-middlename'),
+                            lastName: getElementValue('field-prof-lastname')
+                        })
+                    });
+                    await parseApiResponse(updateResponse);
+                    alert('Profile updated.');
+                } catch (error) {
+                    alert(error.message);
+                } finally {
+                    submitButton.disabled = false;
+                    submitButton.textContent = 'Update Profile';
+                }
+            });
+        }
+
+    } catch (err) {
+        handleApiError(err);
+        console.error('Failed to load profiling detail:', err);
+    }
+}
+
+// D4. REQUESTS LISTING (requests.html)
+async function initRequestModule() {
+    const tableBody = document.getElementById('target-request-rows');
+    const template = document.getElementById('template-request-row');
+    if (!tableBody || !template) return;
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/requests`, { headers: AppState.getHeaders() });
+        const payload = await parseApiResponse(response);
+        const requests = payload.data || [];
+
+        tableBody.innerHTML = '';
+
+        requests.forEach(record => {
+            const clone = template.content.cloneNode(true);
+            const row = clone.querySelector('tr');
+            clone.querySelector('.col-student-id').textContent = record.studentId;
+            clone.querySelector('.col-name').textContent = record.fullName;
+            clone.querySelector('.col-date').textContent = record.dateRequested;
+            
+            const statusTd = clone.querySelector('.col-status');
+            statusTd.innerHTML = `<span class="status-badge ${statusBadgeClass(record.status)}">${record.status}</span>`;
+            row.dataset.search = [
+                record.request_id,
+                record.studentId,
+                record.fullName,
+                record.dateRequested,
+                record.status,
+                record.request_type
+            ].filter(Boolean).join(' ');
+            
+            clone.querySelector('.route-view-btn').addEventListener('click', () => {
+                window.location.href = `request-view.html?id=${record.studentId}`;
+            });
+
+            const editStatusButton = clone.querySelector('.route-edit-status');
+            if (editStatusButton) {
+                editStatusButton.addEventListener('click', async () => {
+                    if (!record.request_id) {
+                        alert('This legacy document row has no editable request record yet.');
+                        return;
+                    }
+
+                    const nextStatus = (prompt('Set status to PENDING, URGENT, or DONE:', record.status) || '').trim().toUpperCase();
+                    if (!nextStatus || nextStatus === record.status) return;
+                    if (!['PENDING', 'URGENT', 'DONE'].includes(nextStatus)) {
+                        alert('Status must be PENDING, URGENT, or DONE.');
+                        return;
+                    }
+
+                    try {
+                        editStatusButton.disabled = true;
+                        const updated = await updateRequestStatus(record.request_id, nextStatus);
+                        record.status = updated.status;
+                        statusTd.innerHTML = `<span class="status-badge ${statusBadgeClass(updated.status)}">${updated.status}</span>`;
+                        row.dataset.search = `${row.dataset.search} ${updated.status}`;
+                    } catch (error) {
+                        alert(error.message);
+                    } finally {
+                        editStatusButton.disabled = false;
+                    }
+                });
+            }
+
+            tableBody.appendChild(clone);
+        });
+
+        setElementText('txt-request-pagination', requests.length ? `1-${requests.length} of ${requests.length}` : '0-0 of 0');
+        installTableSearch('input-request-search', tableBody, 'txt-request-pagination');
+    } catch (err) {
+        handleApiError(err);
+        console.error('Failed to populate request table:', err);
+    }
+}
+
+// D5. REQUEST DETAIL VIEW (request-view.html)
+async function initRequestViewModule() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const studentId = urlParams.get('id');
+    if (!studentId) return;
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/requests/${studentId}`, { headers: AppState.getHeaders() });
+        const payload = await parseApiResponse(response);
+        const data = payload.data;
+
+        document.getElementById('req-view-id').textContent = data.studentId;
+        document.getElementById('req-view-name').textContent = data.fullName;
+        document.getElementById('req-view-course').textContent = data.course;
+        document.getElementById('req-view-year').textContent = data.yearLevel;
+
+        const tableBody = document.getElementById('target-request-items');
+        const template = document.getElementById('template-request-item-row');
+        tableBody.innerHTML = '';
+
+        data.items.forEach(item => {
+            const clone = template.content.cloneNode(true);
+            clone.querySelector('.item-id').textContent = item.id;
+            clone.querySelector('.item-name').textContent = item.document;
+            clone.querySelector('.item-qty').textContent = item.quantity;
+            tableBody.appendChild(clone);
+        });
+
+    } catch (err) {
+        handleApiError(err);
+        console.error('Failed to load request detail:', err);
     }
 }
 
@@ -199,63 +906,84 @@ async function initProfilingModule() {
 async function initArchivingDashboard() {
     try {
         const response = await fetch(`${API_BASE_URL}/archive/dashboard-summary`, { headers: AppState.getHeaders() });
-        const data = await response.json();
+        const payload = await parseApiResponse(response);
+        const data = getResponseData(payload);
 
-        document.getElementById('metric-summary-students').textContent = data.totalStudents;
-        document.getElementById('metric-summary-archived').textContent = data.totalArchived;
-        document.getElementById('metric-summary-eligible').textContent = data.totalEligible;
+        document.getElementById('metric-summary-students').textContent = data.totalStudents || 0;
+        document.getElementById('metric-summary-archived').textContent = data.totalArchived || 0;
+        document.getElementById('metric-summary-eligible').textContent = data.totalEligible || 0;
 
-        document.getElementById('metric-telemetry-used').textContent = `${data.storageUsedGb} GB`;
-        document.getElementById('metric-telemetry-total').textContent = `${data.storageTotalTb} TB`;
-        document.getElementById('metric-telemetry-encryption').textContent = data.encryptionStatus;
-        document.getElementById('metric-telemetry-checksum').textContent = data.lastChecksumRun;
+        document.getElementById('metric-telemetry-used').textContent = `${data.storageUsedGb || 0} GB`;
+        document.getElementById('metric-telemetry-total').textContent = `${data.storageTotalTb || 0} TB`;
+        document.getElementById('metric-telemetry-encryption').textContent = data.encryptionStatus || 'N/A';
+        document.getElementById('metric-telemetry-checksum').textContent = data.lastChecksumRun || 'Never';
 
         // Animate Archiving Chart Column Bars
-        const ceiling = Math.max(data.totalStudents, data.totalArchived, data.totalEligible, 1);
-        document.getElementById('bar-summary-students').style.height = `${(data.totalStudents / ceiling) * 100}%`;
-        document.getElementById('bar-summary-archived').style.height = `${(data.totalArchived / ceiling) * 100}%`;
-        document.getElementById('bar-summary-eligible').style.height = `${(data.totalEligible / ceiling) * 100}%`;
+        const ceiling = Math.max(data.totalStudents || 0, data.totalArchived || 0, data.totalEligible || 0, 1);
+        document.getElementById('bar-summary-students').style.height = `${((data.totalStudents || 0) / ceiling) * 100}%`;
+        document.getElementById('bar-summary-archived').style.height = `${((data.totalArchived || 0) / ceiling) * 100}%`;
+        document.getElementById('bar-summary-eligible').style.height = `${((data.totalEligible || 0) / ceiling) * 100}%`;
 
     } catch (err) {
+        handleApiError(err);
         console.error('Failed to load archival dashboard variables:', err);
     }
 }
 
 // F. CORE ARCHIVAL PROCESSING TABLE (archiving.html)
 async function initArchivingRegistry() {
-    const tableBody = document.getElementById('target-archive-rows');
-    const template = document.getElementById('template-archive-row');
+    const tableBody = document.getElementById('target-archive-rows') || document.getElementById('target-registry-rows');
+    const template = document.getElementById('template-archive-row') || document.getElementById('template-registry-row');
     if (!tableBody || !template) return;
 
     try {
         const response = await fetch(`${API_BASE_URL}/archive/registry`, { headers: AppState.getHeaders() });
-        const data = await response.json();
+        const payload = await parseApiResponse(response);
+        const data = getResponseData(payload);
+        const students = data.students || [];
+        const hardware = data.hardware || {};
+        const isUniversityRegistry = Boolean(document.getElementById('target-registry-rows'));
 
         tableBody.innerHTML = '';
 
-        data.students.forEach(student => {
+        students.forEach(student => {
             const clone = template.content.cloneNode(true);
             clone.querySelector('.col-student-id').textContent = student.studentId;
             clone.querySelector('.col-name').textContent = student.fullName;
             clone.querySelector('.col-course').textContent = student.course;
             clone.querySelector('.col-college').textContent = student.college;
-            
-            // Render Status Badges programmatically
+            const yearLevelCell = clone.querySelector('.col-year-level');
+            if (yearLevelCell) yearLevelCell.textContent = student.yearLevel || 'N/A';
+
+            const enrollmentStatusCell = clone.querySelector('.col-enrollment-status');
+            if (enrollmentStatusCell) {
+                enrollmentStatusCell.innerHTML = `<span class="status-badge ${student.statusClass || 'status-pending'}">${student.enrollmentStatus || student.statusText || 'ACTIVE'}</span>`;
+            }
+
             const statusTd = clone.querySelector('.col-status');
-            statusTd.innerHTML = `<span class="status-badge ${student.statusClass}">${student.statusText}</span>`;
-            
-            clone.querySelector('.route-view-btn').addEventListener('click', () => {
+            if (statusTd) {
+                statusTd.innerHTML = `<span class="status-badge ${student.statusClass || 'status-pending'}">${student.statusText || 'ACTIVE'}</span>`;
+            }
+
+            const viewButton = clone.querySelector('.route-view-btn, .action-view-student');
+            if (viewButton) viewButton.addEventListener('click', () => {
                 window.location.href = `archiving-view.html?id=${student.studentId}`;
             });
 
             tableBody.appendChild(clone);
         });
 
-        document.getElementById('telemetry-ssd-used').textContent = `${data.hardware.usedGb} GB`;
-        document.getElementById('telemetry-ssd-total').textContent = `${data.hardware.totalTb} TB`;
-        document.getElementById('telemetry-encryption-status').textContent = data.hardware.engineStatus;
+        if (isUniversityRegistry) {
+            document.getElementById('txt-registry-pagination').textContent = students.length ? `1-${students.length} of ${students.length}` : '0-0 of 0';
+        } else {
+            document.getElementById('txt-archive-pagination').textContent = students.length ? `1-${students.length} of ${students.length}` : '0-0 of 0';
+            document.getElementById('telemetry-ssd-used').textContent = `${hardware.usedGb || 0} GB`;
+            document.getElementById('telemetry-ssd-total').textContent = `${hardware.totalTb || 0} TB`;
+            document.getElementById('telemetry-encryption-status').textContent = hardware.engineStatus || 'N/A';
+        }
 
     } catch (err) {
+        handleApiError(err);
         console.error('Error populating archival verification board:', err);
     }
 }
@@ -268,57 +996,73 @@ async function initArchivingViewDrilldown() {
 
     try {
         const response = await fetch(`${API_BASE_URL}/archive/students/${studentId}`, { headers: AppState.getHeaders() });
-        const studentData = await response.json();
+        const payload = await parseApiResponse(response);
+        const studentData = getResponseData(payload);
 
         // Inject Single Entity Values into layout DOM anchors
-        document.getElementById('val-audit-status').textContent = studentData.auditStatus;
-        document.getElementById('val-student-id').textContent = studentData.studentId;
-        document.getElementById('val-student-name').textContent = studentData.fullName;
-        document.getElementById('val-course').textContent = studentData.course;
+        document.getElementById('val-audit-status').textContent = studentData.auditStatus || 'N/A';
+        document.getElementById('val-student-id').textContent = studentData.studentId || 'N/A';
+        document.getElementById('val-student-name').textContent = studentData.fullName || 'N/A';
+        document.getElementById('val-course').textContent = studentData.course || 'N/A';
         document.getElementById('val-year').textContent = studentData.yearLevel || '--';
         
         const badge = document.getElementById('val-badge-status');
-        badge.textContent = studentData.statusText;
-        badge.className = `status-highlight ${studentData.statusClass}`;
-        badge.style.display = 'inline-block';
+        if (badge) {
+            badge.textContent = studentData.statusText || 'Unknown';
+            badge.className = `status-highlight ${studentData.statusClass || ''}`;
+            badge.style.display = 'inline-block';
+        }
 
         // Dynamic compliance checklist extraction using the template node
         const listContainer = document.getElementById('target-ocr-checklist');
         const checklistTemplate = document.getElementById('template-ocr-check-item');
-        listContainer.innerHTML = '';
+        if (listContainer && checklistTemplate) {
+            listContainer.innerHTML = '';
+            const documents = studentData.documents || [];
 
-        studentData.documents.forEach(doc => {
-            const liClone = checklistTemplate.content.cloneNode(true);
-            liClone.querySelector('.check-title').textContent = doc.documentName;
-            if (!doc.passedOcrVerification) {
-                liClone.querySelector('.check-mark').textContent = '❌';
-                liClone.querySelector('.check-mark').style.color = 'var(--red)';
-            }
-            listContainer.appendChild(liClone);
-        });
+            documents.forEach(doc => {
+                const liClone = checklistTemplate.content.cloneNode(true);
+                liClone.querySelector('.check-title').textContent = doc.documentName;
+                if (!doc.passedOcrVerification) {
+                    liClone.querySelector('.check-mark').textContent = '❌';
+                    liClone.querySelector('.check-mark').style.color = 'var(--red)';
+                }
+                listContainer.appendChild(liClone);
+            });
+        }
 
         // Trigger action implementation hook for executing archival
-        document.getElementById('action-archive-execute').onclick = async () => {
-            const execBtn = document.getElementById('action-archive-execute');
-            execBtn.disabled = true;
-            execBtn.textContent = "Processing Vault Link...";
+        const archiveBtn = document.getElementById('action-archive-execute');
+        if (archiveBtn) {
+            archiveBtn.onclick = async () => {
+                archiveBtn.disabled = true;
+                archiveBtn.textContent = "Processing Vault Link...";
 
-            const archiveRes = await fetch(`${API_BASE_URL}/archive/execute/${studentId}`, {
-                method: 'POST',
-                headers: AppState.getHeaders()
-            });
+                try {
+                    const archiveRes = await fetch(`${API_BASE_URL}/archive/execute/${studentId}`, {
+                        method: 'POST',
+                        headers: AppState.getHeaders()
+                    });
 
-            if (archiveRes.ok) {
-                alert('Record securely encrypted and committed to main archive database system successfully.');
-                window.location.href = 'archiving.html';
-            } else {
-                alert('Archival action failure. Review file tracking log parameters.');
-                execBtn.disabled = false;
-                execBtn.textContent = "EXECUTE ARCHIVAL";
-            }
-        };
+                    if (archiveRes.ok) {
+                        alert('Record securely encrypted and committed to main archive database system successfully.');
+                        window.location.href = 'archiving.html';
+                    } else {
+                        const errPayload = await archiveRes.json().catch(() => ({}));
+                        alert(`Archival action failure: ${errPayload.message || 'Review file tracking log parameters.'}`);
+                        archiveBtn.disabled = false;
+                        archiveBtn.textContent = "EXECUTE ARCHIVAL";
+                    }
+                } catch (err) {
+                    alert(`Network Error: ${err.message}`);
+                    archiveBtn.disabled = false;
+                    archiveBtn.textContent = "EXECUTE ARCHIVAL";
+                }
+            };
+        }
 
     } catch (err) {
+        handleApiError(err);
         console.error('Critical archival payload breakdown context:', err);
     }
 }
@@ -330,36 +1074,60 @@ async function initSystemIntegrityEngine() {
     if (!tableBody || !template) return;
 
     try {
-        const response = await fetch(`${API_BASE_URL}/integrity/logs`, { headers: AppState.getHeaders() });
-        const logData = await response.json();
-
-        document.getElementById('metric-integrity-validated').textContent = logData.totalFilesVerified;
-        document.getElementById('metric-integrity-bitrot').textContent = logData.bitRotErrorsDetected;
-        document.getElementById('metric-integrity-timestamp').textContent = logData.lastExecutionTime;
-
-        tableBody.innerHTML = '';
-
-        logData.runs.forEach(run => {
-            const clone = template.content.cloneNode(true);
-            clone.querySelector('.col-run-id').textContent = run.runId;
-            clone.querySelector('.col-date').textContent = run.executionDate;
-            clone.querySelector('.col-time').textContent = run.executionTime;
-            clone.querySelector('.col-files-count').textContent = run.filesProcessedCount;
-            clone.querySelector('.col-errors-count').textContent = run.errorsFound;
-            
-            // Programmatically define class based on checksum index ratios
-            const scoreTd = clone.querySelector('.col-score-badge');
-            let scoreClass = 'score-perfect';
-            if (run.score < 85) scoreClass = 'score-alert';
-            else if (run.score < 100) scoreClass = 'score-warning';
-
-            scoreTd.innerHTML = `<span class="${scoreClass}">${run.score}%</span>`;
-            tableBody.appendChild(clone);
-        });
+        const logData = await fetchIntegrityLogData();
+        renderIntegrityLogData(logData, tableBody, template);
 
     } catch (err) {
+        handleApiError(err);
         console.error('Error fetching integrity snapshot registries:', err);
     }
+}
+
+async function fetchIntegrityLogData() {
+    const response = await fetch(`${API_BASE_URL}/integrity/logs`, { headers: AppState.getHeaders() });
+
+    if (response.status !== 404) {
+        const payload = await parseApiResponse(response);
+        return getResponseData(payload);
+    }
+
+    const summaryResponse = await fetch(`${API_BASE_URL}/archive/dashboard-summary`, { headers: AppState.getHeaders() });
+    const summaryPayload = await parseApiResponse(summaryResponse);
+    const summary = getResponseData(summaryPayload);
+
+    return {
+        totalFilesVerified: 0,
+        bitRotErrorsDetected: 0,
+        lastExecutionTime: summary.lastChecksumRun || 'No runs yet',
+        runs: []
+    };
+}
+
+function renderIntegrityLogData(logData, tableBody, template) {
+    document.getElementById('metric-integrity-validated').textContent = logData.totalFilesVerified || 0;
+    document.getElementById('metric-integrity-bitrot').textContent = logData.bitRotErrorsDetected || 0;
+    document.getElementById('metric-integrity-timestamp').textContent = logData.lastExecutionTime || 'N/A';
+
+    tableBody.innerHTML = '';
+    const runs = logData.runs || [];
+
+    runs.forEach(run => {
+        const clone = template.content.cloneNode(true);
+        clone.querySelector('.col-run-id').textContent = run.runId;
+        clone.querySelector('.col-date').textContent = run.executionDate;
+        clone.querySelector('.col-time').textContent = run.executionTime;
+        clone.querySelector('.col-files-count').textContent = run.filesProcessedCount;
+        clone.querySelector('.col-errors-count').textContent = run.errorsFound;
+
+        // Programmatically define class based on checksum index ratios
+        const scoreTd = clone.querySelector('.col-score-badge');
+        let scoreClass = 'score-perfect';
+        if (run.score < 85) scoreClass = 'score-alert';
+        else if (run.score < 100) scoreClass = 'score-warning';
+
+        scoreTd.innerHTML = `<span class="${scoreClass}">${run.score}%</span>`;
+        tableBody.appendChild(clone);
+    });
 }
 // ATTACH LOCK MUTATION EVENT LISTENERS
 function enableFormLockToggles() {

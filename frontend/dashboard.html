@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>UEP Registrar Admin - Operations Panel</title>
   <link rel="stylesheet" href="production-system.css" />
+  <script src="app-integration.js" defer></script>
 </head>
 <body>
 
@@ -33,7 +34,10 @@
           <span>Requests</span>
         </a>
       </nav>
-      <a href="#" id="action-logout-trigger" class="logout">Logout</a>
+      <div class="sidebar-actions">
+        <a href="selection.html" class="sidebar-action" data-admin-only="true" hidden>Change Module</a>
+        <a href="#" class="sidebar-action" data-action="logout">Log out</a>
+      </div>
     </aside>
 
     <main class="main">
@@ -42,19 +46,19 @@
         
         <div class="stat-cards">
           <div class="stat-card">
-            <div class="stat-label">Total number of Students</div>
+            <div class="stat-label">Archived Students</div>
             <div class="stat-value placeholder-num" id="core-metric-students">--</div>
           </div>
           <div class="stat-card">
-            <div class="stat-label">Total number of Admissions</div>
+            <div class="stat-label">Urgent Requests</div>
             <div class="stat-value placeholder-num" id="core-metric-admissions">--</div>
           </div>
           <div class="stat-card">
-            <div class="stat-label">Total number of Profiling</div>
+            <div class="stat-label">Profiling Records</div>
             <div class="stat-value placeholder-num" id="core-metric-profiling">--</div>
           </div>
           <div class="stat-card">
-            <div class="stat-label">Total number of Requests</div>
+            <div class="stat-label">Pending Requests</div>
             <div class="stat-value placeholder-num" id="core-metric-requests">--</div>
           </div>
         </div>
@@ -63,8 +67,8 @@
       <div class="charts-row">
         <div class="chart-card">
           <div class="chart-legend">
-            <span><span class="legend-dot green"></span>Claimed</span>
-            <span><span class="legend-dot blue"></span>For release</span>
+            <span><span class="legend-dot green"></span>Archived</span>
+            <span><span class="legend-dot blue"></span>Urgent</span>
             <span><span class="legend-dot grey"></span>Pending</span>
           </div>
           <div class="chart-area">
@@ -89,7 +93,7 @@
               <div id="msg-chart-requests-nodata" class="no-data-label" style="display:none;">No data yet</div>
             </div>
           </div>
-          <div class="chart-title">Request count by status</div>
+          <div class="chart-title">Dashboard workload summary</div>
         </div>
 
         <div class="chart-card">
@@ -120,7 +124,7 @@
               <div id="msg-chart-modules-nodata" class="no-data-label" style="display:none;">No data yet</div>
             </div>
           </div>
-          <div class="chart-title">Total records per module</div>
+          <div class="chart-title">Available dashboard metrics</div>
         </div>
       </div>
     </main>
